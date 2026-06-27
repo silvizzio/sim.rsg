@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSG Simulation</title>
+<style>
+  :root{
+    --bg:#0c1418; --water:#0e1b22; --land:#1b2730; --ink:#e7eef2; --muted:#8aa0ad;
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+    --glass:rgba(16,26,32,.82); --glass2:rgba(20,32,40,.94);
+    --accent:#7fd1c4; --safe:#43c08a; --watch:#e0a93c; --risk:#e5654b; --neutral:#7f93a0;
+    --chip:rgba(255,255,255,.06);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13px;overflow:hidden}
+  .app{display:flex;flex-direction:column;height:100vh}
+
+  .topbar{display:flex;align-items:center;gap:14px;height:46px;padding:0 14px;background:var(--glass2);border-bottom:1px solid var(--line);z-index:30}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.3px}
+  .brand .dot{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#2b4a52,#7fd1c4)}
+  .brand small{display:block;font-weight:400;color:var(--muted);font-size:10px;letter-spacing:.2px}
+  .topchips{display:flex;gap:6px;margin-left:6px}
+  .tchip{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 9px}
+  .personas{display:flex;gap:4px;margin-left:auto}
+  .ptab{font-size:11px;padding:6px 13px;border-radius:8px;border:1px solid var(--line);color:var(--muted);cursor:pointer;background:transparent;user-select:none}
+  .ptab.on{color:#06121a;background:var(--accent);border-color:var(--accent);font-weight:600}
+  .ptab.disabled{opacity:.38;cursor:not-allowed}
+  .topright{display:flex;align-items:center;gap:12px;margin-left:14px}
+  .lod{font-size:10px;border:1px solid var(--line2);border-radius:6px;padding:3px 7px;color:var(--muted)}
+  .simstate{font-size:10px;display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .simstate .pip{width:7px;height:7px;border-radius:50%;background:var(--neutral)}
+  .simstate.run .pip{background:var(--safe);box-shadow:0 0 0 3px rgba(67,192,138,.18)}
+  .clock{font-variant-numeric:tabular-nums;color:var(--muted);font-size:11px}
+  .vendor{font-size:10px;color:var(--muted);letter-spacing:.5px}
+
+  .body{flex:1;display:grid;grid-template-columns:264px 1fr 322px;min-height:0}
+  .col{position:relative;min-height:0}
+  .rail{background:var(--glass);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  .railscroll{flex:1;overflow:auto;padding:12px 12px 14px}
+  .railfoot{padding:10px 12px;border-top:1px solid var(--line);background:var(--glass2)}
+  .stage{background:radial-gradient(120% 90% at 60% 30%,#10222b 0%,var(--water) 55%,#091217 100%);overflow:hidden}
+  .readout{background:var(--glass);border-left:1px solid var(--line);padding:12px 12px 28px;overflow:auto}
+
+  .sect{font-size:9.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);margin:16px 2px 8px}
+  .sect:first-child{margin-top:2px}
+
+  .simlist{display:flex;flex-direction:column;gap:2px}
+  .simitem{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;color:var(--muted)}
+  .simitem:hover{background:var(--chip)}
+  .simitem.on{background:rgba(127,209,196,.12);color:var(--ink)}
+  .simitem .nm{flex:1}
+  .simgrouplabel{font-size:9px;color:var(--muted);opacity:.65;margin:11px 2px 3px;letter-spacing:.6px;text-transform:uppercase}
+
+  .ctrl{margin-bottom:11px}
+  .ctrl .lbl{font-size:10.5px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between}
+  .seg{display:flex;gap:4px;flex-wrap:wrap}
+  .box{flex:1;min-width:38px;text-align:center;font-size:10.5px;padding:6px 4px;border:1px solid var(--line2);border-radius:6px;cursor:pointer;color:var(--ink);background:rgba(255,255,255,.02);user-select:none}
+  .box:hover{border-color:var(--accent)}
+  .box.on{background:rgba(127,209,196,.16);border-color:var(--accent);font-weight:600}
+  .box.hi{border-color:rgba(224,169,60,.6)}
+  .box.on.hi{background:rgba(224,169,60,.18);border-color:var(--watch)}
+  .preset .box.on{background:var(--accent);color:#06121a}
+
+  .layers{display:flex;flex-direction:column;gap:3px}
+  .lyr{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);padding:5px 4px;cursor:pointer;border-radius:5px}
+  .lyr:hover{background:var(--chip)}
+  .lyr .sw{width:13px;height:13px;border-radius:3px;border:1px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;font-size:9px;flex:none}
+  .lyr.on{color:var(--ink)}
+  .lyr.on .sw{background:rgba(127,209,196,.5);border-color:var(--accent)}
+  .lyr.locked{cursor:default}
+  .lyr .glyph{width:16px;display:inline-flex;justify-content:center;flex:none}
+  .lyr .lockhint{margin-left:auto;font-size:8px;color:var(--muted);opacity:.7;letter-spacing:.4px;text-transform:uppercase}
+
+  .mapwrap{position:absolute;inset:0}
+  svg.map{width:100%;height:100%;display:block}
+  .island{fill:var(--land);stroke:rgba(255,255,255,.14);stroke-width:1.2}
+  .fieldblob{fill:rgba(255,255,255,.05);stroke:rgba(255,255,255,.13);stroke-dasharray:4 4}
+  .heatband{stroke:none}
+  .pathcase{stroke:rgba(8,16,20,.55);stroke-width:9;stroke-linecap:round}
+  .pathline{stroke-width:5.5;stroke-linecap:round;opacity:.95}
+  .zone{fill:none;stroke:rgba(255,255,255,.32);stroke-width:1.3;stroke-dasharray:6 5}
+  .flowarrow{stroke:rgba(231,238,242,.55);stroke-width:1.4;marker-end:url(#ah)}
+  .gridline{stroke:rgba(255,255,255,.04);stroke-width:1}
+  .pin{fill:none;stroke:var(--ink);stroke-width:1.4}
+  .pinlbl{fill:var(--muted);font-size:9px;font-family:var(--font)}
+  .ped,.veh{stroke-width:1;vector-effect:non-scaling-stroke}
+  .ped{stroke:var(--ink);fill:rgba(231,238,242,.30)}
+  .veh{stroke:var(--ink);fill:rgba(231,238,242,.18)}
+  .ped.safe,.veh.safe{fill:var(--safe);stroke:var(--safe);fill-opacity:.7}
+  .ped.exp,.veh.exp{fill:var(--watch);stroke:var(--watch);fill-opacity:.95}
+  .ped.risk,.veh.risk{fill:var(--risk);stroke:var(--risk);fill-opacity:.95}
+
+  .spotlayer{position:absolute;inset:0;pointer-events:none;z-index:5}
+  .spot{position:absolute;transform:translate(-50%,-50%);background:var(--glass2);border:1px solid var(--line2);border-radius:7px;padding:4px 8px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+  .spot small{color:var(--muted);font-size:8px;display:block;letter-spacing:.3px;text-transform:uppercase}
+  .spot b{font-size:10.5px;color:var(--ink)}
+  .spot:after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:var(--glass2);border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);transform:translateX(-50%) rotate(45deg)}
+
+  .stagehint{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;color:var(--muted);font-size:12px;max-width:260px;line-height:1.6;pointer-events:none}
+  .stagehint .k{display:inline-block;border:1px solid var(--line2);border-radius:6px;padding:2px 8px;color:var(--ink);margin-top:8px}
+
+  .legendbar{position:absolute;left:14px;right:14px;bottom:12px;z-index:7;display:flex;gap:10px;align-items:flex-start;overflow-x:auto;max-height:calc(100% - 56px)}
+  .lgcount{margin-left:auto;font-variant-numeric:tabular-nums;font-size:9.5px;color:var(--muted);padding-left:10px;min-width:18px;text-align:right;flex:none}
+  .lgchip.on .lgcount{color:var(--ink)}
+  .rotitle{margin:0 0 13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+  .rotitle .rt-name{font-size:15px;font-weight:600;color:var(--ink);line-height:1.2}
+  .rotitle .rt-lens{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .lggroup{display:flex;flex-direction:column;gap:5px;flex:none;background:var(--glass2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;backdrop-filter:blur(5px)}
+  .lghead{display:flex;align-items:center;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);cursor:pointer;user-select:none}
+  .lghead.locked{cursor:default}
+  .lghead .gck{width:12px;height:12px;border-radius:3px;border:1px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;font-size:8px;flex:none}
+  .lghead.on .gck{background:rgba(127,209,196,.5);border-color:var(--accent);color:#06121a}
+  .lgmarkers{display:flex;flex-direction:column;gap:5px;align-items:stretch}
+  .lgchip{display:flex;align-items:center;gap:5px;font-size:9.5px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 7px;white-space:nowrap}
+  .lgchip.toggle{cursor:pointer}
+  .lgchip.on{color:var(--ink);border-color:var(--line2)}
+  .lgchip.off{opacity:.42}
+  .lgchip.locked{cursor:default}
+  .lgchip .ck{width:11px;height:11px;border-radius:3px;border:1px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;font-size:7.5px;flex:none}
+  .lgchip.on .ck{background:rgba(127,209,196,.5);border-color:var(--accent)}
+  .lgsw{width:14px;height:11px;border-radius:3px;flex:none;display:inline-flex;align-items:center;justify-content:center}
+
+  .backbtn{position:absolute;left:12px;top:12px;font-size:11px;border:1px solid var(--line2);border-radius:8px;padding:7px 11px;background:var(--glass2);color:var(--muted);cursor:not-allowed;z-index:8}
+
+  .runbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;border:none;border-radius:9px;padding:11px 14px;cursor:pointer;background:var(--accent);color:#06121a}
+  .runbtn.stop{background:var(--risk);color:#fff}
+
+  .banner{border:1px solid var(--line2);border-radius:9px;padding:11px 12px;margin-bottom:13px;background:rgba(255,255,255,.02)}
+  .banner .ttl{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  .banner .msg{font-size:13px;line-height:1.4}
+  .banner .tag{display:inline-block;font-size:9px;letter-spacing:.6px;text-transform:uppercase;border-radius:5px;padding:2px 7px;margin-top:8px}
+  .lv-stable{border-left:3px solid var(--safe)} .lv-stable .tag{background:rgba(67,192,138,.16);color:var(--safe)}
+  .lv-watch{border-left:3px solid var(--watch)} .lv-watch .tag{background:rgba(224,169,60,.16);color:var(--watch)}
+  .lv-risk{border-left:3px solid var(--risk)} .lv-risk .tag{background:rgba(229,101,75,.16);color:var(--risk)}
+
+  .hero{border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:9px;background:rgba(255,255,255,.02)}
+  .hero .hl{font-size:10.5px;color:var(--muted);margin-bottom:3px}
+  .hero .hv{font-size:25px;font-weight:600;line-height:1.05}
+  .hero .hv small{font-size:12px;color:var(--muted);font-weight:400}
+  .hero .delta{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .hero.exposure{border-color:rgba(229,101,75,.35)}
+  .hero .hl em{font-style:normal;color:var(--accent);font-size:9px;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;margin-left:6px}
+
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0 4px}
+  .kpi{border:1px solid var(--line);border-radius:7px;padding:8px 9px;background:rgba(255,255,255,.02)}
+  .kpi .kl{font-size:9.5px;color:var(--muted);margin-bottom:3px}
+  .kpi .kv{font-size:13px;font-weight:600}
+
+  .acts{margin-top:6px}
+  .act{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line2);border-radius:8px;padding:9px 10px;margin-bottom:6px;cursor:pointer}
+  .act:hover{border-color:var(--accent)}
+  .act.on{background:rgba(127,209,196,.12);border-color:var(--accent)}
+  .act .rb{width:14px;height:14px;border-radius:50%;border:1.4px solid var(--line2);margin-top:1px;flex:none}
+  .act.on .rb{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 0 40%,transparent 42%)}
+  .act .at{font-size:11.5px;line-height:1.35}
+  .act .ah{font-size:9.5px;color:var(--muted);margin-top:2px}
+  .act.donothing{border-style:dashed}
+  .act .lowtag{font-size:8.5px;letter-spacing:.5px;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:6px;background:var(--chip);color:var(--muted)}
+
+  .note{font-size:9.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);margin-top:11px;padding-top:9px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span><div>Red Sea Global<small>Shura Island Intelligence Operations Centre</small></div></div>
+    <div class="topchips"><span class="tchip">Shura Island</span><span class="tchip" id="scopeChip">Shura Island</span></div>
+    <div class="personas" id="personas">
+      <button class="ptab on" data-p="GXM">GXM</button>
+      <button class="ptab" data-p="OPS">OPS</button>
+      <button class="ptab" data-p="ENV">ENV</button>
+      <button class="ptab" data-p="MO">MO</button>
+    </div>
+    <div class="topright">
+      <span class="lod">LOD 3</span>
+      <span class="simstate" id="simStatePill"><span class="pip"></span><span id="simStateTxt">Idle</span></span>
+      <span class="clock">20:44:08 AST</span>
+      <span class="vendor">iot&sup2; &nbsp;VIZZIO</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="col rail">
+      <div class="railscroll">
+        <div class="sect">Simulation</div>
+        <div class="simlist" id="simList"></div>
+
+        <div id="agentSection">
+          <div class="sect">Simulation object</div>
+          <div class="layers" id="agentSel"></div>
+        </div>
+
+        <div class="sect">Scenario preset</div>
+        <div class="seg preset" id="presetSeg"></div>
+
+        <div class="sect">Scenario input</div>
+        <div id="inputs"></div>
+
+        <div class="sect">Layers shown</div>
+        <div class="layers" id="layers"></div>
+      </div>
+      <div class="railfoot">
+        <button class="runbtn" id="runBtn">&#9658;&nbsp; Run simulation</button>
+      </div>
+    </div>
+
+    <div class="col stage">
+      <div class="mapwrap">
+        <svg class="map" viewBox="0 0 900 640" id="map" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="rgba(231,238,242,.55)"/>
+            </marker>
+            <filter id="heat" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+          </defs>
+          <g id="gGrid"></g><g id="gIsland"></g><g id="gField"></g><g id="gZone"></g><g id="gFlow"></g>
+          <g id="gPins"></g><g id="gMovers"></g>
+        </svg>
+        <div class="spotlayer" id="spotLayer"></div>
+      </div>
+      <button class="backbtn" title="Live mode is being redesigned separately">&larr; Back to live</button>
+      <div class="stagehint" id="stageHint">Set your scenario on the left, then<br><span class="k">Run simulation</span></div>
+
+      <div class="legendbar" id="legendBar"></div>
+    </div>
+
+    <div class="col readout" id="readout">
+      <div class="rotitle" id="roTitle"></div>
+      <div id="idleState">
+        <div class="banner"><div class="ttl">Forecasted outcome</div><div class="msg" style="color:var(--muted)">Not running. Set your scenario, then press Run simulation.</div></div>
+        <div class="hero"><div class="hl" id="idleHeroLbl">Hero metric</div><div class="hv" style="color:var(--muted)">&ndash;</div></div>
+        <div class="kpis" id="idleKpis"></div>
+      </div>
+      <div id="runState" class="hidden">
+        <div class="banner" id="banner"><div class="ttl">Forecasted outcome</div><div class="msg" id="bannerMsg"></div><span class="tag" id="bannerTag"></span></div>
+        <div class="sect" style="margin-top:4px">Forecasted conditions</div>
+        <div class="hero" id="heroCond"><div class="hl" id="condLbl"></div><div class="hv" id="condVal"></div><div class="delta" id="condDelta"></div></div>
+        <div class="hero exposure hidden" id="heroExp"><div class="hl" id="expLbl"></div><div class="hv" id="expVal"></div><div class="delta" id="expDelta"></div></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="sect">Recommended actions</div>
+        <div class="acts" id="acts"></div>
+        <div class="note">Exploration only. Nothing here is saved to live operations, and the recommended responses are modeled previews, not dispatched actions.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const RAMPS = {
+  heat:{ttl:"Heat stress (UTCI)",stops:[["Comfortable","#3a8f7a"],["Moderate","#d8c14a"],["Strong","#e0902f"],["Very strong","#d24b34"]]},
+  grid:{ttl:"Grid load",stops:[["Low","#3a8f7a"],["Moderate","#d8c14a"],["High","#e0902f"],["Very high","#d24b34"]]},
+  flood:{ttl:"Flood depth",stops:[["Dry","#2f6f86"],["Shallow","#5fb3c4"],["Moderate","#d8c14a"],["Deep","#d24b34"]]},
+  oil:{ttl:"Slick concentration",stops:[["None","#2f6f86"],["Sheen","#6b7f8a"],["Light","#caa24a"],["Heavy","#7a4a2f"]]},
+  wq:{ttl:"Water quality index",stops:[["Excellent","#2f9fb0"],["Good","#54b38a"],["Moderate","#d8c14a"],["Poor","#e0902f"],["Very poor","#d24b34"]]},
+  cur:{ttl:"Current speed",stops:[["Slack","#3a8f7a"],["Mild","#5fb3c4"],["Moderate","#d8c14a"],["Strong","#d24b34"]]},
+  wave:{ttl:"Sea state (Hs)",stops:[["Calm","#3a8f7a"],["Slight","#5fb3c4"],["Moderate","#d8c14a"],["Rough","#d24b34"]]},
+  coral:{ttl:"Bleaching risk (DHW)",stops:[["No stress","#2f9fb0"],["Watch","#d8c14a"],["Warning","#e0902f"],["Critical","#d2632f"],["Alert","#d24b34"]]},
+  wind:{ttl:"Wind strength",stops:[["Calm","#3a8f7a"],["Breeze","#5fb3c4"],["Strong","#e0902f"],["Gale","#d24b34"]]},
+  mob:{ttl:"Road congestion",stops:[["Free flow","#3a8f7a"],["Busy","#d8c14a"],["Congested","#e0902f"],["Gridlock","#d24b34"]]},
+  crowd_d:{ttl:"Crowd density",stops:[["Comfortable","#3a8f7a"],["Busy","#d8c14a"],["Dense","#e0902f"],["Crush","#d24b34"]]},
+  evac:{ttl:"Clearance",stops:[["On target","#3a8f7a"],["Slight over","#d8c14a"],["Over","#e0902f"],["Critical","#d24b34"]]},
+  transit:{ttl:"Line load",stops:[["Light","#3a8f7a"],["Steady","#d8c14a"],["Full","#e0902f"],["Overloaded","#d24b34"]]},
+  reach:{ttl:"Reachability",stops:[["Within 5 min","#3a8f7a"],["Within 10","#d8c14a"],["Within 15","#e0902f"],["Beyond","#d24b34"]]},
+  pudo:{ttl:"Drop-off queue",stops:[["Clear","#3a8f7a"],["Filling","#d8c14a"],["Queued","#e0902f"],["Backed up","#d24b34"]]},
+  emit:{ttl:"Emissions and noise",stops:[["Low","#3a8f7a"],["Moderate","#d8c14a"],["Elevated","#e0902f"],["High","#d24b34"]]},
+  conflict:{ttl:"Conflict risk",stops:[["Low risk","#3a8f7a"],["Caution","#d8c14a"],["Conflict","#e0902f"],["Hotspot","#d24b34"]]}
+};
+
+const SIMS = {
+  mobility:{name:"Mobility",engine:"Aimsun Next",ramp:"mob",
+    preset:["Off-peak","Peak arrival","Event egress"],presetDef:1,
+    inputs:[["Demand",["Low","Peak","Event"],1,[2]],["Incident",["None","Lane closed"],0,[1]],["Shuttle freq",["Low","High"],1]],
+    fieldMode:"paths",layers:["field","pins"],
+    elements:[["field","Road congestion"],["flow","Traffic flow"],["pins","Arrival, marina, drop-off"]],
+    spots:[[40,34,"Arrival road","Busy"],[58,46,"Marina loop","Congested"],[31,53,"Drop-off","Free flow"]],
+    outcome:["Congestion risk, the arrival road approaches gridlock at peak","watch"],
+    cond:{lbl:"Worst link delay",val:"6.5",unit:"min",delta:"up 4.2 from base"},
+    kpis:[["Network delay","High"],["Queue length","Long"],["Junction LOS","E"],["Shuttle on-time","Low"]],
+    overlay:{mover:"veh",engine:"Aimsun Next",expLbl:"Vehicles in congestion",expVal:"120",expWorst:"210",expDelta:"of 380 on the network",
+      kpis:[["Buggies queued","High"],["Avg wait","6.5 min"]],
+      acts:[["Meter arrival road","Holds inflow so the loop clears"],["Reroute to second gate","Spreads vehicles across entries"],["Add shuttle runs","Lifts capacity on the busy corridor"],["Hold event egress","Staggers departure to avoid the spike"]]}
+  },
+  crowd:{name:"Crowd",engine:"MassMotion",ramp:"crowd_d",
+    preset:["Quiet","Busy","Event peak"],presetDef:1,
+    inputs:[["Footfall",["Low","Busy","Peak"],1,[2]],["Event",["None","Show"],0,[1]],["Gates open",["All","Reduced"],0,[1]]],
+    fieldMode:"paths",layers:["field","zone","pins"],
+    elements:[["field","Crowd density"],["flow","Pedestrian flow"],["zone","Safe-density line"],["pins","Plaza, gates"]],
+    spots:[[44,40,"Plaza","3.1 p/m2"],[58,50,"Main gate","Busy"],[34,32,"Boardwalk","Comfortable"]],
+    outcome:["Density risk, the plaza nears the safe-density line at peak","watch"],
+    cond:{lbl:"Peak density",val:"3.1",unit:"p/m2",delta:"up 1.4 from base"},
+    kpis:[["Service level","D"],["Wait at gates","Long"],["Flow rate","Near limit"],["Hotspot","Plaza"]],
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Guests in dense crowd",expVal:"240",expWorst:"360",expDelta:"of 1,200 on site",
+      kpis:[["In hotspot","High"],["Comfort","Poor"]],
+      acts:[["Meter gate flow","Holds entry so density eases"],["Open extra gates","Adds capacity at the plaza"],["Reroute foot traffic","Pulls guests onto the boardwalk"],["Hold show start","Staggers the arrival surge"]]}
+  },
+  evacuation:{name:"Evacuation",engine:"MassMotion",ramp:"evac",
+    preset:["Drill","Partial","Full"],presetDef:1,
+    inputs:[["Trigger",["Drill","Fire","Surge"],1,[1,2]],["Population",["Low","High"],1],["Exits open",["All","Reduced"],0,[1]]],
+    fieldMode:"paths",layers:["field","zone","pins"],
+    elements:[["field","Clearance time"],["flow","Egress flow"],["zone","Assembly area"],["pins","Exits, muster"]],
+    spots:[[46,40,"Main exit","Clearing"],[60,48,"Pier route","Slow"],[32,34,"Muster A","Filling"]],
+    outcome:["Clearance risk, total clear time runs past the target window","watch"],
+    cond:{lbl:"Clear time",val:"14",unit:"min",delta:"target 9"},
+    kpis:[["Exits at capacity","2 of 4"],["Bottleneck","Pier route"],["Last to clear","Beach"],["Muster fill","On track"]],
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Guests not yet cleared",expVal:"300",expWorst:"520",expDelta:"of 1,200 to move",
+      kpis:[["At bottleneck","High"],["Clear by target","No"]],
+      acts:[["Open all exits","Adds egress capacity"],["Reroute off pier","Moves flow off the slow route"],["Direct to nearer muster","Shortens the longest paths"],["Stage marshals","Speeds the slowest corridors"]]}
+  },
+  transit:{name:"Shuttle network",engine:"PTV Lines",ramp:"transit",fieldMode:"paths",
+    preset:["Off-peak","Midday","Event peak"],presetDef:1,
+    inputs:[["Demand",["Low","Steady","Peak"],1,[2]],["Frequency",["Base","Boosted"],0],["Lines open",["All","Reduced"],0,[1]]],
+    layers:["field","pins"],
+    elements:[["field","Line load"],["pins","Stops, marina, hub"]],
+    spots:[[40,40,"Hub","Steady"],[58,52,"Marina line","Full"],[34,30,"Beach line","Light"]],
+    outcome:["Capacity risk, the marina line runs full at peak","watch"],
+    cond:{lbl:"Busiest line load",val:"92",unit:"%",delta:"up 28 from base"},
+    kpis:[["Line load","High"],["Wait at stops","Long"],["Coverage","Good"],["On-time","Slipping"]],
+    overlay:{mover:"veh",engine:"PTV Vissim",expLbl:"Shuttles on busy lines",expVal:"8",expWorst:"12",expDelta:"of 20 in service",
+      kpis:[["Guests waiting","High"],["Avg wait","7 min"]],
+      acts:[["Boost frequency","Adds runs on the busy line"],["Add a relief shuttle","Lifts capacity on the marina line"],["Rebalance lines","Spreads load across routes"],["Stagger departures","Smooths the arrival surge"]]}
+  },
+  access:{name:"Accessibility",engine:"PTV Visum",ramp:"reach",fieldMode:"heat",
+    preset:["Midday","Peak","Event"],presetDef:1,
+    inputs:[["Mode",["Walk","Walk and shuttle"],1],["Demand",["Low","Peak"],1,[1]],["Paths open",["All","Reduced"],0,[1]]],
+    layers:["field","pins"],
+    elements:[["field","Reachability"],["pins","Amenities, hub"]],
+    spots:[[44,40,"Plaza","Within 5 min"],[60,52,"Marina","Within 15 min"],[32,30,"Far villas","Beyond"]],
+    outcome:["Access risk, the far villas fall outside the easy-reach window","watch"],
+    cond:{lbl:"Reach to key amenities",val:"15",unit:"min",delta:"target 10"},
+    kpis:[["Within 10 min","Most"],["Weak spot","Far villas"],["Walk share","Good"],["Shuttle reliance","Rising"]],
+    overlay:{mover:"ped",engine:"PTV Viswalk",expLbl:"Guests beyond easy reach",expVal:"160",expWorst:"260",expDelta:"of 1,200 on site",
+      kpis:[["In low-access area","High"],["Extra walk","Long"]],
+      acts:[["Add a shuttle stop","Pulls far areas into reach"],["Open a direct path","Shortens the longest walks"],["Reroute shuttle","Covers the weak spot"],["Relocate amenity","Brings service closer to guests"]]}
+  },
+  dropoff:{name:"Drop-off forecourt",engine:"PTV Vissim",ramp:"pudo",fieldMode:"paths",
+    preset:["Off-peak","Check-in peak","Event egress"],presetDef:1,
+    inputs:[["Arrivals",["Low","Peak","Event"],1,[2]],["Curb open",["Full","Reduced"],0,[1]],["Marshals",["Off","On"],0]],
+    layers:["field","pins"],
+    elements:[["field","Drop-off queue"],["pins","Curb, bays, hold"]],
+    spots:[[40,38,"Drop-off curb","Backed up"],[34,32,"Approach","Filling"],[46,44,"Hold bay","Clear"]],
+    outcome:["Queue risk, the drop-off curb backs onto the approach at peak","watch"],
+    cond:{lbl:"Curb queue",val:"11",unit:"veh",delta:"up 7 from base"},
+    kpis:[["Curb dwell","Long"],["Spillback","Approach"],["Junction LOS","E"],["Cycle wait","High"]],
+    overlay:{mover:"veh",engine:"PTV Vissim",expLbl:"Vehicles in the drop-off queue",expVal:"11",expWorst:"19",expDelta:"at the curb and approach",
+      kpis:[["Avg dwell","3 min"],["Guests alighting","Steady"]],
+      acts:[["Stage a hold bay","Holds vehicles off the curb"],["Add curb capacity","Opens more drop-off bays"],["Meter the approach","Slows inflow so the curb clears"],["Deploy marshals","Speeds curb turnover"]]}
+  },
+  emissions:{name:"Emissions and noise",engine:"PTV Visum",ramp:"emit",fieldMode:"heat",
+    preset:["Off-peak","Peak","Event"],presetDef:1,
+    inputs:[["Traffic",["Low","Peak","Event"],1,[2]],["Fleet",["Electric","Mixed"],0,[1]],["Boats",["Few","Many"],0,[1]]],
+    layers:["field","pins"],
+    elements:[["field","Emissions and noise"],["pins","Roads, marina, plaza"]],
+    spots:[[40,38,"Arrival road","Elevated"],[58,50,"Marina","Moderate"],[44,40,"Plaza","Low"]],
+    outcome:["Comfort risk, noise near the plaza climbs at peak traffic","watch"],
+    cond:{lbl:"Peak noise",val:"68",unit:"dBA",delta:"up 9 from base"},
+    kpis:[["Noise","Elevated"],["NOx","Low"],["Hotspot","Arrival road"],["EV share","High"]],
+    overlay:{mover:"veh",engine:"PTV Vissim",stressor:true,expLbl:"Vehicles emitting",expVal:"90",expWorst:"150",expDelta:"on the network",
+      kpis:[["Diesel share","Low"],["Boat traffic","Moderate"]],
+      acts:[["Shift to electric runs","Cuts the emitting fleet"],["Reroute heavy vehicles","Moves noise off guest areas"],["Cap boat movements","Holds marina noise down"],["Shift delivery timing","Moves freight off peak"]]}
+  },
+  safety:{name:"Safety conflicts",engine:"PTV Viswalk",ramp:"conflict",fieldMode:"paths",
+    preset:["Off-peak","Peak","Event"],presetDef:1,
+    inputs:[["Footfall",["Low","Peak","Event"],1,[2]],["Vehicle flow",["Low","High"],1],["Crossings",["Signalized","Informal"],1,[1]]],
+    layers:["field","pins"],
+    elements:[["field","Conflict risk"],["pins","Crossings, shared spaces"]],
+    spots:[[44,40,"Plaza crossing","Conflict"],[58,52,"Marina crossing","Conflict"],[34,32,"Boardwalk","Low risk"]],
+    outcome:["Safety risk, the plaza crossing reaches conflict level at peak","watch"],
+    cond:{lbl:"Worst crossing risk",val:"3.4",unit:"index",delta:"up 1.6 from base"},
+    kpis:[["Conflict points","2"],["Worst","Plaza crossing"],["Near-misses","Rising"],["Signal cover","Partial"]],
+    overlay:{mover:"both",engine:"PTV Vissim + Viswalk",expLbl:"People and vehicles in conflict zones",expVal:"60",expWorst:"110",expDelta:"at flagged crossings",
+      kpis:[["At plaza crossing","High"],["At marina crossing","Elevated"]],
+      acts:[["Signalize the crossing","Separates people and vehicles in time"],["Add a guarded crossing","Staffs the worst point"],["Reroute vehicles","Pulls traffic off the shared space"],["Separate the paths","Splits foot and vehicle routes"]]}
+  },
+  thermal:{name:"Outdoor thermal comfort",engine:"Ladybug Tools",ramp:"heat",
+    preset:["Mild AM","Midday","Heat Peak"],presetDef:1,
+    inputs:[["Time of day",["Morning","Midday","Afternoon"],1],["Air temp",["31","38","32"],1,[1]],["Humidity",["Low","Med","High"],1],["Shade",["Added","Current"],1]],
+    layers:["field","zone","pins"],
+    elements:[["field","Feels-like heat (UTCI)"],["zone","Comfort threshold"],["pins","Pool deck, broadwalk"]],
+    spots:[[33,33,"Pool deck","24.2&deg;"],[56,46,"Broadwalk","36.5&deg;"],[69,29,"18th green","39.8&deg;"],[45,58,"Beach lawn","34.1&deg;"]],
+    outcome:["Exposure risk, shaded share drops as midday sun peaks","watch"],
+    cond:{lbl:"Shade availability",val:"42",unit:"%",delta:"down 23 from base"},
+    kpis:[["Site heat-stress","High"],["Surface comfort","Poor"],["Cooling gain","Low"],["Exposed area","Large"]],
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Guests in heat-stress zone",expVal:"180",expWorst:"260",expDelta:"of 420 outdoors",
+      kpis:[["Exposed dwell","High"],["Shaded share","42%"]],
+      acts:[["Shade-route guests","Steers foot traffic onto shaded paths"],["Open cooling points","Gives exposed guests a relief stop"],["Shift activity timing","Moves programming off peak sun"]]}
+  },
+  energy:{name:"Energy",engine:"HOMER Pro",ramp:"grid",
+    preset:["Daytime","Evening","Peak deficit"],presetDef:1,
+    inputs:[["Demand",["Off-peak","Evening","Peak"],1],["Solar",["Clear","Cloudy","Night"],1],["Battery start",["80","60","40"],1],["EV charging",["Low","High"],1,[1]]],
+    layers:["field","flow","pins"],
+    elements:[["field","Grid load"],["flow","Energy flow"],["pins","Battery node, chargers"]],
+    spots:[[40,33,"Battery node","41% SOC"],[60,45,"Charger bank","High load"],[31,53,"Load centre","Peak"]],
+    outcome:["Diesel-backup risk, renewable share falls toward the trigger","watch"],
+    cond:{lbl:"Renewable share",val:"62",unit:"%",delta:"down 26 from base"},
+    kpis:[["CO2 emissions","Rising"],["Carbon avoided","Lower"],["Curtailment","High"],["Battery reserve","Thin"]],
+    overlay:{mover:"veh",engine:"Aimsun Next",stressor:true,expLbl:"EV charging load",expVal:"High",expWorst:"Peak",expDelta:"controllable demand",
+      kpis:[["Vehicles charging","Many"],["Controllable load","High"]],
+      acts:[["Pre-charge buses","Loads the fleet before the evening peak"],["Stagger charging","Spreads charger draw across the window"],["Curtail charging","Caps EV draw to hold reserve"],["Reroute to off-peak chargers","Shifts vehicles to lighter nodes"]]}
+  },
+  flood:{name:"Flood and storm surge",engine:"Delft3D",ramp:"flood",
+    preset:["Calm","High tide","Storm surge"],presetDef:1,
+    inputs:[["Storm",["None","Cat 1","Cat 3"],1,[2]],["Tide",["Low","High","Spring high"],1,[2]],["Rainfall",["Dry","Heavy"],0,[1]]],
+    layers:["field","flow","zone","pins"],
+    elements:[["field","Flood depth and surge extent"],["flow","Surge inflow"],["zone","Low-lying risk"],["pins","Jetty, berths"]],
+    spots:[[35,30,"Promenade","0.4 m"],[50,42,"Jetty","1.6 m"],[60,53,"Berth quay","1.8 m"]],
+    outcome:["Marina surge risk, surge climbs toward the vessel-risk level","watch"],
+    cond:{lbl:"Surge at marina",val:"1.8",unit:"m",delta:"up 1.5 from base"},
+    kpis:[["Flow velocity","High"],["Depth at jetties","1.6"],["Surge arrival","Soon"],["Low-lying reach","Wide"]],
+    overlay:{mover:"both",engine:"MassMotion + Aimsun",expLbl:"Guests and vehicles in depth zone",expVal:"210",expWorst:"340",expDelta:"guests, plus 24 vehicles",
+      kpis:[["Vehicles in depth zone","24"],["Clear time","18 min"]],
+      acts:[["Evacuate to high ground","Moves exposed guests out of the depth zone"],["Reroute egress around water","Keeps exits on dry routes as water spreads"],["Move vehicles","Clears buggies and EVs off the low quay"],["Stage shuttles","Pre-positions transport for the move"]]}
+  },
+  oil:{name:"Oil spill",engine:"Delft3D-PART (confirm)",ramp:"oil",
+    preset:["Contained","Drifting","Spreading"],presetDef:1,
+    inputs:[["Source",["Vessel","Pipeline"],0],["Wind",["Low","High"],1,[1]],["Current",["Weak","Strong"],1,[1]]],
+    layers:["field","flow","zone","pins"],
+    elements:[["field","Slick and drift plume"],["flow","Drift direction"],["zone","Receptors"],["pins","Boom point"]],
+    spots:[[58,28,"Slick front","Heavy"],[42,46,"Boom point","Sheen"],[70,40,"Reef edge","Light"]],
+    outcome:["Offshore slick, drift tracked toward the receptor line","watch"],
+    cond:{lbl:"Slick to receptor",val:"3.2",unit:"km",delta:"closing"},
+    kpis:[["Drift direction","Onshore"],["Spread rate","Moderate"],["Receptors at risk","Reef edge"],["Arrival time","Hours"]]
+  },
+  water:{name:"Water quality",engine:"Delft3D-WAQ",ramp:"wq",
+    preset:["Good","Stressed","Poor"],presetDef:1,
+    inputs:[["Wind",["Low","Medium","High"],1],["Discharge",["Off","On"],1,[1]],["Temperature",["27","31"],1,[1]],["Flushing",["Strong","Weak"],1,[1]]],
+    layers:["field","flow","pins"],
+    elements:[["field","Water quality index"],["flow","Flow"],["pins","Dive sites"]],
+    spots:[[45,40,"Dive site A","7.0 m vis"],[60,50,"Basin","Poor"],[35,32,"Lagoon","Moderate"]],
+    outcome:["Dive clarity risk, visibility falls below the activity threshold","watch"],
+    cond:{lbl:"Water clarity",val:"7.0",unit:"m vis",delta:"down 5.0 from base"},
+    kpis:[["Salinity","Shifted"],["Temperature","30"],["DO at dive sites","Low"],["Activity","Limited"]]
+  },
+  current:{name:"Ocean current",engine:"Delft3D-FLOW",ramp:"cur",
+    preset:["Neap","Spring","Spring Storm"],presetDef:1,
+    inputs:[["Tidal forcing",["Neap","Spring"],1],["Wind",["Calm","Strong"],0,[1]],["Season",["Summer","Winter"],0]],
+    layers:["field","flow","pins"],
+    elements:[["field","Current speed"],["flow","Current direction"],["pins","Channel"]],
+    spots:[[50,38,"Channel","0.6 m/s"],[64,30,"Nav pass","Mild"],[38,48,"Marina mouth","Slack"]],
+    outcome:["Drift risk, current at the channel raises dive-drift risk","watch"],
+    cond:{lbl:"Current speed",val:"0.6",unit:"m/s",delta:"up 0.3 from base"},
+    kpis:[["Water level","Normal"],["At channel","Mild"],["Drift risk","Low"],["Vessel handling","Easy"]]
+  },
+  wave:{name:"Wave",engine:"SWAN",ramp:"wave",
+    preset:["Calm","Moderate","Storm"],presetDef:1,
+    inputs:[["Offshore swell",["Calm","Moderate","High"],1,[2]],["Period",["Short","Long"],1],["Direction",["NW","W"],0],["Water level",["Low","High"],1]],
+    layers:["field","flow","zone","pins"],
+    elements:[["field","Wave height"],["flow","Wave direction"],["zone","Small-craft window"],["pins","Breakwater"]],
+    spots:[[56,31,"Outer beach","1.6 m"],[40,44,"Breakwater","1.2 m"],[66,40,"Routes","Breaking"]],
+    outcome:["Small-craft wave risk, wave height nears the small-craft limit","watch"],
+    cond:{lbl:"Wave height (Hs)",val:"1.6",unit:"m",delta:"up 1.1 from base"},
+    kpis:[["Wave period","Short"],["Direction","Cross"],["Breaking on routes","Some"],["Small-craft window","Closed"]]
+  },
+  coral:{name:"Coral reef",engine:"ReefMod-GBR + NOAA DHW",ramp:"coral",
+    preset:["Baseline","Watch","Severe"],presetDef:1,
+    inputs:[["Heat stress (DHW)",["0","4","8","12"],1,[2,3]],["Water quality",["Good","Poor"],0,[1]],["Disturbance",["None","COTS","Cyclone"],0,[1,2]],["Horizon",["Now","1 year","5 years"],1]],
+    layers:["field","zone","pins"],
+    elements:[["field","Coral heat stress"],["zone","Reef zone"],["pins","Reef, dive sites"]],
+    spots:[[48,36,"Reef head","5.2 DHW"],[62,46,"Dive zone","Watch"],[36,30,"Fringe","Warning"]],
+    outcome:["Dive-site reef risk, heat stress approaches the closure trigger","watch"],
+    cond:{lbl:"Bleaching risk",val:"5.2",unit:"DHW",delta:"up 3.2 from base"},
+    kpis:[["Reef health","Good"],["Disturbance","Low"],["Anchor/boat risk","Low"],["Closure trigger","Clear"]]
+  },
+  wind:{name:"Wind",engine:"WRF + CFD",ramp:"wind",
+    preset:["Calm","Breezy","Storm"],presetDef:1,
+    inputs:[["Wind speed",["Calm","Breeze","Strong","Gale"],1,[2,3]],["Direction",["NW","W","SW"],1],["Gust factor",["Low","High"],0,[1]]],
+    layers:["field","flow","zone","pins"],
+    elements:[["field","Wind speed"],["flow","Airflow direction"],["zone","Operating limit"],["pins","Marina mouth"]],
+    spots:[[50,30,"Marina mouth","14 kn"],[64,40,"Over water","Light"],[38,46,"Decks","Gusts low"]],
+    outcome:["Within normal range, inputs are at a breezy setting","stable"],
+    cond:{lbl:"Marine wind window",val:"14",unit:"kn",delta:"up 5.3 from base"},
+    kpis:[["Wind over water","Light"],["Gusts","Low"],["Small-craft limit","Clear"],["Mooring exposure","Low"]],
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Guests in exposed wind zone",expVal:"90",expWorst:"160",expDelta:"on open decks and paths",
+      kpis:[["On exposed decks","High"],["Comfort","Poor"]],
+      acts:[["Close exposed decks","Moves guests off the windiest spots"],["Reroute sheltered","Steers foot traffic to lee-side paths"],["Pause high activities","Holds exposed programming"]]}
+  }
+};
+
+const PERSONAS = {
+  GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety"],
+    lens:{mobility:"Guest transfer time and arrival-road congestion, with buggies in the queue",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed guest decks, with guests on open paths",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings"}},
+  ENV:{scope:"Shura Island",sims:["thermal","energy","flood","oil","water","current","wave","coral","emissions"],
+    lens:{thermal:"Site shade availability and the heat-stress footprint",energy:"Renewable share against the diesel-backup trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward environmental receptors",water:"Clarity and condition against the activity threshold",current:"Current and flushing condition",wave:"Sea state and coastal exposure",coral:"Bleaching risk on the DHW scale",emissions:"Traffic emissions and noise footprint over the site"},
+    floodCond:{lbl:"Surge at shoreline",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
+  OPS:{scope:"Shura Island",sims:["mobility","crowd","evacuation","wind","energy","flood","oil","transit","dropoff","safety"],
+    lens:{mobility:"Road congestion and worst-link delay, with vehicles in the queue",crowd:"Crowd density against the safe-density line, with guests in the hotspot",evacuation:"Total clear time against target, with guests still to move",wind:"Exposed-deck wind, with guests on open paths",energy:"Renewable share and EV charging load against the trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward shore and receptors",transit:"Shuttle line load and capacity against demand",dropoff:"Drop-off curb queue and approach spillback",safety:"Conflict points across crossings and shared spaces"},
+    floodCond:{lbl:"Surge at low-lying zone",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
+  MO:{scope:"North Reef",sims:["flood","wind","wave","current","water","oil","coral"],overlayOff:["wind"],
+    lens:{flood:"Surge at the marina, with people and vehicles on the marina front",wind:"Marine wind window, small-craft limit, mooring exposure",oil:"Slick entry and boom point",water:"Dive-site clarity, DO, and activity",current:"Drift risk on dive routes and vessel handling",wave:"Significant wave height against the small-craft limit",coral:"Bleaching risk, closure trigger, anchor risk"},
+    floodCond:{lbl:"Surge at marina",val:"1.8",unit:"m",delta:"up 1.5 from base"}}
+};
+
+const TYPE_GROUPS=[["People","ped"],["Traffic","veh"],["Transport","both"],["Environment",null]];
+const LAYER_GLYPH={zone:'<span style="display:block;width:12px;height:8px;border:1px dashed var(--ink)"></span>',flow:'<span style="color:var(--ink)">&rarr;</span>',pins:'<svg width="11" height="11"><circle cx="5.5" cy="5.5" r="3.6" fill="none" stroke="var(--ink)"/></svg>'};
+const EXP=[["safe","Safe","var(--safe)"],["exp","Exposed","var(--watch)"],["risk","At-risk","var(--risk)"]];
+
+let state={persona:"GXM",sim:"mobility",running:false,layersOn:{},bandsOff:{},expOff:{},chosenAct:null,inputSel:{},presetSel:1,peopleOn:false,vehOn:false,agents:[],raf:null};
+const $=s=>document.querySelector(s);
+const SVGNS="http://www.w3.org/2000/svg";
+
+function simData(){const s=JSON.parse(JSON.stringify(SIMS[state.sim]));if(state.sim==="flood")s.cond=PERSONAS[state.persona].floodCond;return s;}
+function overlayDef(){const ov=SIMS[state.sim].overlay;if(!ov)return null;const off=PERSONAS[state.persona].overlayOff||[];return off.includes(state.sim)?null:ov;}
+function isOverlay(){return !!overlayDef();}
+function moverType(){const ov=overlayDef();return ov?ov.mover:null;}
+function effMover(id){const ov=SIMS[id].overlay;if(!ov)return null;const off=PERSONAS[state.persona].overlayOff||[];return off.includes(id)?null:ov.mover;}
+
+/* ---- index bands (field broken into severity bands, each toggleable) ---- */
+function ramp(){return RAMPS[SIMS[state.sim].ramp].stops;}
+function hasField(){return SIMS[state.sim].layers.includes("field");}
+function bandOn(i){return !state.bandsOff[i];}
+function anyBandOn(){return hasField()&&ramp().some((_,i)=>bandOn(i));}
+function toggleBand(i){if(state.bandsOff[i])delete state.bandsOff[i];else state.bandsOff[i]=true;afterField();}
+function setAllBands(on){ramp().forEach((_,i)=>{if(on)delete state.bandsOff[i];else state.bandsOff[i]=true;});afterField();}
+function afterField(){renderLayers();renderMap();renderLegend();}
+
+/* ---- exposure states (each toggleable) ---- */
+function expOn(k){return !state.expOff[k];}
+function anyExpOn(){return EXP.some(([k])=>expOn(k));}
+function toggleExp(k){if(state.expOff[k])delete state.expOff[k];else state.expOff[k]=true;renderLegend();}
+function setAllExp(on){EXP.forEach(([k])=>{if(on)delete state.expOff[k];else state.expOff[k]=true;});renderLegend();}
+
+/* ---------------- left rail ---------------- */
+function renderSimList(){
+  const host=$("#simList");host.innerHTML="";
+  const sims=PERSONAS[state.persona].sims;
+  TYPE_GROUPS.forEach(([label,mv])=>{
+    const ids=sims.filter(id=>effMover(id)===mv);
+    if(!ids.length)return;
+    const g=document.createElement("div");g.className="simgrouplabel";g.textContent=label;host.appendChild(g);
+    ids.forEach(id=>{
+      const it=document.createElement("div");it.className="simitem"+(id===state.sim?" on":"");
+      it.innerHTML=`<span class="nm">${SIMS[id].name}</span>`;
+      it.onclick=()=>switchSim(id);
+      host.appendChild(it);
+    });
+  });
+}
+function renderAgentSection(){
+  const sec=$("#agentSection"),host=$("#agentSel");
+  if(!isOverlay()){sec.classList.add("hidden");return;}
+  sec.classList.remove("hidden");host.innerHTML="";
+  const mv=moverType(),present=[];
+  if(mv!=="veh")present.push(["people","Humans","&#9679;",state.peopleOn]);
+  if(mv!=="ped")present.push(["veh","Vehicles","&#9632;",state.vehOn]);
+  present.forEach(([k,lab,gl,on])=>{
+    const locked=agentLocked(k),hint=(mv!=="both")?"always on":(locked?"keep 1":"");
+    const r=document.createElement("div");r.className="lyr"+(on?" on":"")+(locked?" locked":"");
+    r.innerHTML=`<span class="sw">${on?"&#10003;":""}</span><span class="glyph">${gl}</span><span>${lab}</span>`+(hint?`<span class="lockhint">${hint}</span>`:"");
+    if(!locked)r.onclick=()=>toggleAgent(k);
+    host.appendChild(r);
+  });
+}
+function renderPreset(){
+  const s=SIMS[state.sim],host=$("#presetSeg");host.innerHTML="";
+  s.preset.forEach((p,i)=>{const b=document.createElement("div");b.className="box"+(i===state.presetSel?" on":"");b.textContent=p;b.onclick=()=>{state.presetSel=i;if(state.running)compute();renderPreset();};host.appendChild(b);});
+}
+function renderInputs(){
+  const s=SIMS[state.sim],host=$("#inputs");host.innerHTML="";
+  s.inputs.forEach((inp,idx)=>{
+    const[label,opts,def,hi]=inp;const sel=(state.inputSel[idx]??def);
+    const c=document.createElement("div");c.className="ctrl";c.innerHTML=`<div class="lbl"><span>${label}</span></div>`;
+    const seg=document.createElement("div");seg.className="seg";
+    opts.forEach((o,oi)=>{const isHi=hi&&hi.includes(oi);const b=document.createElement("div");b.className="box"+(oi===sel?" on":"")+(isHi?" hi":"");b.textContent=o;b.onclick=()=>{state.inputSel[idx]=oi;if(state.running)compute();renderInputs();};seg.appendChild(b);});
+    c.appendChild(seg);host.appendChild(c);
+  });
+}
+function renderLayers(){
+  const s=SIMS[state.sim],host=$("#layers");host.innerHTML="";
+  const elMap=Object.fromEntries(s.elements);
+  s.layers.forEach(l=>{
+    let on,click,label=elMap[l]||l;
+    if(l==="field"){on=anyBandOn();click=()=>setAllBands(!anyBandOn());}
+    else{if(state.layersOn[l]===undefined)state.layersOn[l]=true;on=state.layersOn[l];click=()=>toggleLayer(l);}
+    const row=document.createElement("div");row.className="lyr"+(on?" on":"");
+    row.innerHTML=`<span class="sw">${on?"&#10003;":""}</span><span>${label}</span>`;
+    row.onclick=click;
+    host.appendChild(row);
+  });
+}
+
+/* ---------------- shared toggles ---------------- */
+function toggleLayer(id){state.layersOn[id]=(state.layersOn[id]===false);renderLayers();renderMap();renderLegend();}
+function setLayers(ids,val){ids.forEach(id=>state.layersOn[id]=val);renderLayers();renderMap();renderLegend();}
+function agentLocked(k){const mv=moverType();if(mv!=="both")return true;const on=k==="people"?state.peopleOn:state.vehOn,other=k==="people"?state.vehOn:state.peopleOn;return on&&!other;}
+function toggleAgent(k){if(agentLocked(k))return;if(k==="people")state.peopleOn=!state.peopleOn;else state.vehOn=!state.vehOn;renderAgentSection();if(state.running)startAnim();renderLegend();}
+function setAgents(val){const mv=moverType();if(mv!=="veh")state.peopleOn=val;if(mv!=="ped")state.vehOn=val;renderAgentSection();if(state.running)startAnim();renderLegend();}
+
+/* ---------------- map ---------------- */
+const ISLAND="M210,250 C250,180 360,150 470,170 C560,186 640,150 700,200 C760,250 740,330 690,360 C660,378 640,420 580,430 C520,440 470,470 410,452 C350,434 300,452 260,420 C214,384 232,330 215,300 C205,282 196,270 210,250 Z";
+// freeform heatmap: irregular hotspot blob + secondary pockets, used as the density field
+const HEAT_BLOB="M312,322 C306,256 360,214 446,220 C512,225 558,186 626,212 C696,238 718,298 690,356 C667,410 600,422 540,416 C474,410 430,460 358,430 C310,410 318,374 312,322 Z";
+const HEAT_CX=498, HEAT_CY=322;
+const HEAT_SAT=[[392,292,30],[600,374,26]];
+// dummy route networks (PTV Lines style), per movement sim, segments coloured by severity band
+const PATHS_BY_SIM={
+  mobility:[
+    {pts:[[335,300],[420,322],[505,345],[558,388],[505,428]],sev:[1,2,3,2]},
+    {pts:[[340,288],[450,258],[560,258],[655,275]],sev:[1,1,2]},
+    {pts:[[548,338],[604,352],[606,402],[548,416],[504,378],[548,338]],sev:[2,3,3,2,2]},
+    {pts:[[486,436],[576,426],[648,388],[678,322]],sev:[0,0,1]},
+    {pts:[[360,404],[438,392],[502,382]],sev:[0,1]},
+    {pts:[[430,322],[470,372],[504,378]],sev:[1,2]}
+  ],
+  crowd:[
+    {pts:[[345,302],[430,292],[520,298],[612,318]],sev:[1,1,2]},
+    {pts:[[470,360],[530,372],[592,392]],sev:[2,3]},
+    {pts:[[470,360],[416,326],[372,304]],sev:[2,1]},
+    {pts:[[470,360],[486,408],[506,440]],sev:[2,1]},
+    {pts:[[592,392],[624,366],[648,344]],sev:[3,2]},
+    {pts:[[470,360],[420,372],[372,388]],sev:[2,1]}
+  ],
+  evacuation:[
+    {pts:[[500,362],[430,332],[360,304],[338,290]],sev:[2,1,0]},
+    {pts:[[500,362],[558,392],[602,416]],sev:[3,3]},
+    {pts:[[500,362],[490,410],[474,440]],sev:[2,1]},
+    {pts:[[430,332],[392,340],[362,344]],sev:[1,1]},
+    {pts:[[500,362],[572,344],[636,330]],sev:[2,2]}
+  ],
+  transit:[
+    {pts:[[340,300],[440,320],[520,350],[560,390]],sev:[1,2,2]},
+    {pts:[[340,300],[450,260],[560,260],[650,280]],sev:[1,1,2]},
+    {pts:[[560,390],[504,420],[472,440]],sev:[2,3]},
+    {pts:[[440,320],[470,372],[506,440]],sev:[1,2]}
+  ],
+  dropoff:[
+    {pts:[[300,310],[330,305],[342,300]],sev:[1,1]},
+    {pts:[[342,300],[382,290],[422,300],[442,330],[412,352],[372,346],[346,326],[342,300]],sev:[2,2,3,3,2,1,1]}
+  ],
+  safety:[
+    {pts:[[360,332],[430,338],[470,344],[520,350]],sev:[1,3,1]},
+    {pts:[[472,300],[478,350],[484,388],[492,420]],sev:[1,3,1]},
+    {pts:[[540,360],[572,382],[596,398],[620,410]],sev:[2,3,2]},
+    {pts:[[400,402],[450,408],[500,414],[540,420]],sev:[1,2,2]}
+  ]
+};
+function fieldMode(){return SIMS[state.sim].fieldMode||"heat";}
+function rnd(s){let x=Math.sin(s*99.13)*10000;return x-Math.floor(x);}
+function inField(x,y){const dx=(x-498)/210,dy=(y-322)/132;return dx*dx+dy*dy<1;}
+function renderPaths(){
+  const stops=ramp(),net=PATHS_BY_SIM[state.sim]||PATHS_BY_SIM.mobility;let casings="",lines="";
+  for(const rt of net)for(let i=0;i<rt.pts.length-1;i++){
+    const b=rt.sev[i];if(!bandOn(b))continue;
+    const a=rt.pts[i],c=rt.pts[i+1],col=(stops[b]||["",""])[1]||"#7f93a0";
+    casings+=`<line class="pathcase" x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}"/>`;
+    lines+=`<line class="pathline" x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="${col}"/>`;
+  }
+  return casings+lines;
+}
+function renderMap(){
+  const on=state.layersOn,run=state.running;
+  let g="";for(let x=0;x<900;x+=45)g+=`<line class="gridline" x1="${x}" y1="0" x2="${x}" y2="640"/>`;
+  for(let y=0;y<640;y+=45)g+=`<line class="gridline" x1="0" y1="${y}" x2="900" y2="${y}"/>`;
+  $("#gGrid").innerHTML=g;
+  $("#gIsland").innerHTML=`<path class="island" d="${ISLAND}"/>`;
+  // field: coloured route network for movement sims, freeform heatmap glow for field sims
+  if(run&&anyBandOn()){
+    if(fieldMode()==="paths"){
+      $("#gField").innerHTML=renderPaths();
+    }else{
+      const stops=ramp(),N=stops.length,den=(N-1)||1;
+      let h='<g filter="url(#heat)">';
+      stops.forEach((st,i)=>{if(!bandOn(i))return;
+        const sc=(1-i*(0.6/den)).toFixed(3),op=(0.16+i*0.05).toFixed(3),col=st[1];
+        h+=`<path class="heatband" d="${HEAT_BLOB}" transform="translate(${HEAT_CX} ${HEAT_CY}) scale(${sc}) translate(${-HEAT_CX} ${-HEAT_CY})" style="fill:${col};fill-opacity:${op}"/>`;
+        if(i>=N-2)HEAT_SAT.forEach(p=>{h+=`<circle class="heatband" cx="${p[0]}" cy="${p[1]}" r="${(p[2]*sc).toFixed(1)}" style="fill:${col};fill-opacity:${op}"/>`;});
+      });
+      h+="</g>";
+      $("#gField").innerHTML=h;
+    }
+  }else $("#gField").innerHTML="";
+  $("#gZone").innerHTML=(run&&on.zone)?`<path class="zone" d="M360,300 C430,250 560,260 600,330 C620,390 520,430 440,410 C380,396 340,350 360,300 Z"/>`:"";
+  $("#gFlow").innerHTML=(run&&on.flow)?[[300,200,360,250],[760,260,690,300],[520,150,540,230],[640,430,580,400]].map(a=>`<line class="flowarrow" x1="${a[0]}" y1="${a[1]}" x2="${a[2]}" y2="${a[3]}"/>`).join(""):"";
+  if(on.pins){const pins=[[300,250,"Arrival front"],[560,330,"Marina basin"],[470,430,"Beach front"],[680,250,"Reef edge"]];
+    $("#gPins").innerHTML=pins.map(p=>`<g><circle class="pin" cx="${p[0]}" cy="${p[1]}" r="6"/><circle cx="${p[0]}" cy="${p[1]}" r="1.6" fill="var(--ink)"/><text class="pinlbl" x="${p[0]+10}" y="${p[1]+3}">${p[2]}</text></g>`).join("");}
+  else $("#gPins").innerHTML="";
+  renderSpots();
+}
+function renderSpots(){
+  const host=$("#spotLayer"),s=SIMS[state.sim];
+  if(!(state.running&&anyBandOn()&&s.spots)){host.innerHTML="";return;}
+  host.innerHTML=s.spots.map(sp=>`<div class="spot" style="left:${sp[0]}%;top:${sp[1]}%"><small>${sp[2]}</small><b>${sp[3]}</b></div>`).join("");
+}
+
+/* ---- agents ---- */
+function buildAgents(){
+  const g=$("#gMovers");g.innerHTML="";state.agents=[];
+  if(!(state.running&&isOverlay()))return;
+  const mv=moverType();
+  for(let i=0;i<50;i++){
+    let type=mv==="ped"?"ped":mv==="veh"?"veh":(rnd(i*5.5)>0.78?"veh":"ped");
+    if(type==="ped"&&!state.peopleOn)continue;
+    if(type==="veh"&&!state.vehOn)continue;
+    const x=320+rnd(i*1.7)*360,y=235+rnd(i*2.3)*205,ang=rnd(i*7.1)*Math.PI*2;
+    const e=document.createElementNS(SVGNS,"rect");g.appendChild(e);
+    state.agents.push({x,y,vx:Math.cos(ang)*0.28,vy:Math.sin(ang)*0.28,type,r:rnd(i*3.1),el:e});
+  }
+}
+function frame(){
+  if(!(state.running&&isOverlay()&&(state.peopleOn||state.vehOn))){state.raf=null;return;}
+  const eased=(typeof state.chosenAct==="number");
+  for(const a of state.agents){
+    if(eased){const dx=a.x-498,dy=a.y-322,d=Math.hypot(dx,dy)||1;a.vx+=(dx/d)*0.05;a.vy+=(dy/d)*0.05;}
+    a.x+=a.vx;a.y+=a.vy;a.vx*=0.985;a.vy*=0.985;
+    if(a.x<300){a.x=300;a.vx=Math.abs(a.vx);}if(a.x>700){a.x=700;a.vx=-Math.abs(a.vx);}
+    if(a.y<220){a.y=220;a.vy=Math.abs(a.vy);}if(a.y>445){a.y=445;a.vy=-Math.abs(a.vy);}
+    if(Math.abs(a.vx)+Math.abs(a.vy)<0.12){const ang=Math.random()*Math.PI*2;a.vx=Math.cos(ang)*0.26;a.vy=Math.sin(ang)*0.26;}
+    let cls="safe";if(inField(a.x,a.y))cls=eased?"exp":(a.r>0.6?"risk":"exp");
+    a.cls=cls;
+    const e=a.el;
+    if(a.type==="ped"){e.setAttribute("x",a.x-2);e.setAttribute("y",a.y-4.5);e.setAttribute("width",4);e.setAttribute("height",9);e.setAttribute("rx",2);e.setAttribute("class","ped "+cls);}
+    else{e.setAttribute("x",a.x-5.5);e.setAttribute("y",a.y-2.5);e.setAttribute("width",11);e.setAttribute("height",5);e.setAttribute("rx",1.5);e.setAttribute("class","veh "+cls);}
+    e.style.display=state.expOff[cls]?"none":"";
+  }
+  const t={ped:0,veh:0,safe:0,exp:0,risk:0};for(const a of state.agents){t[a.type]++;t[a.cls]++;}updateCountSpans(t);
+  state.raf=requestAnimationFrame(frame);
+}
+function startAnim(){if(state.raf){cancelAnimationFrame(state.raf);state.raf=null;}buildAgents();if(state.running&&isOverlay()&&(state.peopleOn||state.vehOn))state.raf=requestAnimationFrame(frame);}
+function stopAnim(){if(state.raf){cancelAnimationFrame(state.raf);state.raf=null;}$("#gMovers").innerHTML="";state.agents=[];}
+
+/* ---------------- read-out ---------------- */
+function renderReadout(){
+  const idle=$("#idleState"),run=$("#runState"),s=simData();
+  if(!state.running){
+    idle.classList.remove("hidden");run.classList.add("hidden");
+    $("#idleHeroLbl").textContent=s.cond.lbl;
+    $("#idleKpis").innerHTML=s.kpis.map(k=>`<div class="kpi"><div class="kl">${k[0]}</div><div class="kv" style="color:var(--muted)">&ndash;</div></div>`).join("");
+    return;
+  }
+  idle.classList.add("hidden");run.classList.remove("hidden");
+  const mitigated=(typeof state.chosenAct==="number");
+
+  const bn=$("#banner");bn.className="banner lv-"+(mitigated?"stable":s.outcome[1]);
+  $("#bannerMsg").textContent=mitigated?"Eased. The chosen response pulls the forecast back toward normal.":s.outcome[0];
+  $("#bannerTag").textContent=mitigated?"Recovering":s.outcome[1];
+
+  $("#condLbl").innerHTML=`${s.cond.lbl} <em>${s.engine}</em>`;
+  $("#condVal").innerHTML=`${s.cond.val} <small>${s.cond.unit}</small>`;
+  $("#condDelta").textContent=mitigated?"recovering toward base":s.cond.delta;
+
+  const he=$("#heroExp");
+  if(isOverlay()){
+    const ov=s.overlay;he.classList.remove("hidden");
+    $("#expLbl").innerHTML=`${ov.expLbl} <em>${ov.engine}</em>`;
+    let v=ov.stressor?ov.expVal:(mitigated?Math.round(parseInt(ov.expVal)*0.35):ov.expVal);
+    $("#expVal").textContent=v;
+    $("#expDelta").textContent=ov.stressor?ov.expDelta:(mitigated?"moving clear":ov.expDelta);
+  }else he.classList.add("hidden");
+
+  let kp=s.kpis.slice();if(isOverlay())kp=kp.slice(0,2).concat(s.overlay.kpis);
+  $("#kpis").innerHTML=kp.map(k=>`<div class="kpi"><div class="kl">${k[0]}</div><div class="kv">${k[1]}</div></div>`).join("");
+
+  const acts=isOverlay()?s.overlay.acts.slice():defaultActs();
+  const host=$("#acts");host.innerHTML="";
+  acts.forEach((a,i)=>{
+    const row=document.createElement("div");row.className="act"+(state.chosenAct===i?" on":"");
+    row.innerHTML=`<span class="rb"></span><div><div class="at">${a[0]}</div></div>`;
+    row.onclick=()=>{state.chosenAct=(state.chosenAct===i?"nothing":i);renderReadout();};
+    host.appendChild(row);
+  });
+  const holds=["thermal","wind","wave","current","coral","oil","water"].includes(state.sim);
+  const worst=isOverlay()?`, exposure could reach ${s.overlay.expWorst}`:"";
+  const dn=document.createElement("div");dn.className="act donothing"+(state.chosenAct==="nothing"?" on":"");
+  dn.innerHTML=`<span class="rb"></span><div><div class="at">Do nothing <span class="lowtag">${holds?"holds":"worsens"}</span></div><div class="ah">${holds?"Holds at the modeled level, the event does not compound on its own":"Drifts to the projected worst as the event compounds"+worst}</div></div>`;
+  dn.onclick=()=>{state.chosenAct="nothing";renderReadout();};
+  host.appendChild(dn);
+}
+function defaultActs(){
+  const A={
+    oil:[["Deploy boom at entry","Holds the slick at the boom point"],["Flag drift to vessels","Marks the drift line for craft"],["Sample receptors","Confirms the modeled plume on the water"],["Restrict affected zone","Closes the receptor area until clear"]],
+    water:[["Flag dive site clarity","Clarity falls below the activity threshold"],["Advise activity suitability","Sets a suitability call for the sites"],["Sample dive sites","Confirms clarity and DO on the water"],["Restrict affected sites","Holds the worst-hit sites until clarity recovers"]],
+    current:[["Advise drift on dive routes","Current at the channel raises drift risk"],["Flag channel for vessels","Marks where flow concentrates"],["Restrict drift-risk sites","Holds the most exposed sites"],["Update vessel handling notes","Keeps handling guidance current"]],
+    wave:[["Restrict small craft","Wave height nears the small-craft limit"],["Advise marina window","Sets a clear departure window"],["Close exposed beach","Wave energy reaches the exposed beach"],["Re-route around breaking zones","Keeps routes off the breaking lines"]],
+    coral:[["Flag dive-site reefs","Marks reefs nearing the closure trigger"],["Advise activity suitability","Sets a suitability call as DHW rises"],["Sample dive sites","Confirms the modeled heat stress"],["Restrict affected sites","Rests the worst-hit sites to protect recovery"]],
+    wind:[["Restrict small craft","Held ready if the band climbs to the limit"],["Advise marina departure window","Sets a clear window if wind rises"],["Add mooring lines","Pre-empts mooring exposure in a stronger run"],["Hold dive trips","The call if gusts and the window tighten"]]
+  };
+  return A[state.sim]||[];
+}
+
+/* ---------------- legend (horizontal, grouped, every item checkable) ---------------- */
+function legChip(label,glyphHTML,{toggle=false,on=true,locked=false,onToggle=null,count=0,cntKey=null}={}){
+  const c=document.createElement("div");
+  c.className="lgchip"+(toggle?" toggle":"")+(toggle?(on?" on":" off"):"")+(locked?" locked":"");
+  const ck=toggle?`<span class="ck">${on?"&#10003;":""}</span>`:"";
+  const lh=locked?'<span class="lockhint" style="margin-left:4px">on</span>':"";
+  const cnt=`<span class="lgcount"${cntKey?` data-cnt="${cntKey}"`:""}>${count}</span>`;
+  c.innerHTML=`${ck}<span class="lgsw">${glyphHTML}</span><span>${label}</span>${lh}${cnt}`;
+  if(toggle&&!locked&&onToggle)c.onclick=onToggle;
+  return c;
+}
+function legGroup(title,{groupOn=null,onGroup=null,locked=false}={}){
+  const g=document.createElement("div");g.className="lggroup";
+  const h=document.createElement("div");h.className="lghead"+(groupOn?" on":"")+(locked?" locked":"");
+  const gck=(groupOn===null)?"":`<span class="gck">${groupOn?"&#10003;":""}</span>`;
+  h.innerHTML=`${gck}<span>${title}</span>`;
+  if(groupOn!==null&&!locked&&onGroup)h.onclick=onGroup;
+  const m=document.createElement("div");m.className="lgmarkers";
+  g.appendChild(h);g.appendChild(m);g._m=m;return g;
+}
+
+function renderLegend(){
+  const bar=$("#legendBar"),s=SIMS[state.sim],elMap=Object.fromEntries(s.elements);
+  bar.innerHTML="";
+  const t=state.running?tallyAgents():{ped:0,veh:0,safe:0,exp:0,risk:0};
+
+  // field group: header toggles all bands, each band chip toggles its own band
+  if(hasField()){
+    const fg=legGroup(elMap.field||"Field",{groupOn:anyBandOn(),onGroup:()=>setAllBands(!anyBandOn())});
+    ramp().forEach(([lab,col],i)=>fg._m.appendChild(legChip(lab,`<span style="display:block;width:14px;height:11px;border-radius:3px;background:${col}"></span>`,{toggle:true,on:bandOn(i),onToggle:()=>toggleBand(i),count:bandCount(i)})));
+    bar.appendChild(fg);
+  }
+
+  // layers group: zone, flow, pins, each a toggle
+  const others=s.layers.filter(l=>l!=="field");
+  if(others.length){
+    const anyOn=others.some(l=>state.layersOn[l]!==false);
+    const lg=legGroup("Layers",{groupOn:anyOn,onGroup:()=>setLayers(others,!anyOn)});
+    others.forEach(l=>{const on=state.layersOn[l]!==false;lg._m.appendChild(legChip(elMap[l]||l,LAYER_GLYPH[l]||"",{toggle:true,on,onToggle:()=>toggleLayer(l),count:layerCount(l)}));});
+    bar.appendChild(lg);
+  }
+
+  if(isOverlay()){
+    const mv=moverType();
+    // simulation object group: at least one type must stay on
+    const present=[];if(mv!=="veh")present.push("people");if(mv!=="ped")present.push("veh");
+    const allObjOn=present.every(k=>k==="people"?state.peopleOn:state.vehOn);
+    const og=legGroup("Simulation object",{groupOn:allObjOn,onGroup:()=>setAgents(true),locked:allObjOn});
+    if(mv!=="veh")og._m.appendChild(legChip("Humans",'<span style="display:block;width:6px;height:11px;border:1px solid var(--ink);border-radius:2px;margin:0 auto"></span>',{toggle:true,on:state.peopleOn,locked:agentLocked("people"),onToggle:()=>toggleAgent("people"),count:t.ped,cntKey:"ped"}));
+    if(mv!=="ped")og._m.appendChild(legChip("Vehicles",'<span style="display:block;width:14px;height:8px;border:1px solid var(--ink);border-radius:2px"></span>',{toggle:true,on:state.vehOn,locked:agentLocked("veh"),onToggle:()=>toggleAgent("veh"),count:t.veh,cntKey:"veh"}));
+    bar.appendChild(og);
+
+    // exposure group: safe, exposed, at-risk toggles
+    const eg=legGroup("Exposure",{groupOn:anyExpOn(),onGroup:()=>setAllExp(!anyExpOn())});
+    EXP.forEach(([k,lab,col])=>eg._m.appendChild(legChip(lab,`<span style="display:block;width:12px;height:11px;border-radius:3px;background:${col}${k==="safe"?";opacity:.7":""}"></span>`,{toggle:true,on:expOn(k),onToggle:()=>toggleExp(k),count:t[k],cntKey:k})));
+    bar.appendChild(eg);
+  }
+}
+function renderRoTitle(){const s=SIMS[state.sim];$("#roTitle").innerHTML=`<div class="rt-name">${s.name}</div><div class="rt-lens">${PERSONAS[state.persona].lens[state.sim]||""}</div>`;}
+
+/* per-item counters (0 until a run) */
+const BAND_CELLS=[156,92,48,21,9];
+function bandCount(i){return state.running?(BAND_CELLS[i]!==undefined?BAND_CELLS[i]:6):0;}
+const LAYER_CNT={zone:2,flow:4,pins:4};
+function layerCount(l){return state.running?(LAYER_CNT[l]||1):0;}
+function tallyAgents(){
+  const eased=(typeof state.chosenAct==="number"),t={ped:0,veh:0,safe:0,exp:0,risk:0};
+  for(const a of state.agents){t[a.type]++;let cls=a.cls;if(!cls){cls="safe";if(inField(a.x,a.y))cls=eased?"exp":(a.r>0.6?"risk":"exp");}t[cls]++;}
+  return t;
+}
+function updateCountSpans(t){document.querySelectorAll("#legendBar [data-cnt]").forEach(el=>{el.textContent=t[el.dataset.cnt]!==undefined?t[el.dataset.cnt]:0;});}
+
+/* ---------------- run gate ---------------- */
+function compute(){renderMap();renderReadout();renderLegend();if(state.running)startAnim();}
+function applyRunVisual(){
+  const v=state.running;
+  $("#runBtn").className="runbtn"+(v?" stop":"");
+  $("#runBtn").innerHTML=v?"&#9632;&nbsp; Stop simulation":"&#9658;&nbsp; Run simulation";
+  $("#stageHint").classList.toggle("hidden",v);
+  $("#simStatePill").className="simstate"+(v?" run":"");
+  $("#simStateTxt").textContent=v?"Running":"Idle";
+}
+function initSimDefaults(){
+  state.layersOn={};state.bandsOff={};state.expOff={};state.inputSel={};state.presetSel=SIMS[state.sim].presetDef;
+  const mv=moverType();
+  state.peopleOn=mv?(mv!=="veh"):false;
+  state.vehOn=mv?(mv!=="ped"):false;
+  state.chosenAct=state.running?"nothing":null;
+}
+function renderAll(){renderRoTitle();renderSimList();renderAgentSection();renderPreset();renderInputs();renderLayers();renderMap();renderReadout();renderLegend();}
+function switchSim(id){stopAnim();state.sim=id;initSimDefaults();applyRunVisual();renderAll();if(state.running)startAnim();}
+function switchPersona(p){
+  document.querySelectorAll(".ptab").forEach(x=>x.classList.remove("on"));
+  document.querySelector(`.ptab[data-p="${p}"]`).classList.add("on");
+  state.persona=p;$("#scopeChip").textContent=PERSONAS[p].scope;
+  switchSim(PERSONAS[p].sims[0]);
+}
+function setRunning(v){state.running=v;state.chosenAct=v?"nothing":null;applyRunVisual();renderAll();if(v)startAnim();else stopAnim();}
+document.querySelectorAll(".ptab[data-p]").forEach(t=>{t.onclick=()=>switchPersona(t.dataset.p);});
+$("#runBtn").onclick=()=>setRunning(!state.running);
+
+state.running=false;$("#scopeChip").textContent=PERSONAS[state.persona].scope;initSimDefaults();applyRunVisual();renderAll();
+</script>
+</body>
+</html>
