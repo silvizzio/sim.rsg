@@ -78,6 +78,7 @@
   svg.map{width:100%;height:100%;display:block}
   .island{fill:var(--land);stroke:rgba(255,255,255,.14);stroke-width:1.2}
   .fieldblob{fill:rgba(255,255,255,.05);stroke:rgba(255,255,255,.13);stroke-dasharray:4 4}
+  .rt-phase{font-size:9px;color:var(--accent);border:1px solid var(--line2);border-radius:4px;padding:1px 5px;margin-left:7px;vertical-align:middle;letter-spacing:.04em}
   .heatband{stroke:none}
   .pathcase{stroke:rgba(8,16,20,.55);stroke-width:9;stroke-linecap:round}
   .pathline{stroke-width:5.5;stroke-linecap:round;opacity:.95}
@@ -188,6 +189,10 @@
 
     <div class="col rail">
       <div class="railscroll">
+        <div id="tripModeWrap" class="hidden">
+          <div class="sect">Guest journey</div>
+          <div class="seg" id="tripSeg"></div>
+        </div>
         <div class="sect">Simulation</div>
         <div class="simlist" id="simList"></div>
 
@@ -238,8 +243,8 @@
         <div class="kpis" id="idleKpis"></div>
       </div>
       <div id="runState" class="hidden">
-        <div class="banner" id="banner"><div class="ttl">Forecasted outcome</div><div class="msg" id="bannerMsg"></div><span class="tag" id="bannerTag"></span></div>
-        <div class="sect" style="margin-top:4px">Forecasted conditions</div>
+        <div class="banner" id="banner"><div class="ttl" id="bannerTtl">Forecasted outcome</div><div class="msg" id="bannerMsg"></div><span class="tag" id="bannerTag"></span></div>
+        <div class="sect" id="condSect" style="margin-top:4px">Forecasted conditions</div>
         <div class="hero" id="heroCond"><div class="hl" id="condLbl"></div><div class="hv" id="condVal"></div><div class="delta" id="condDelta"></div></div>
         <div class="hero exposure hidden" id="heroExp"><div class="hl" id="expLbl"></div><div class="hv" id="expVal"></div><div class="delta" id="expDelta"></div></div>
         <div class="kpis" id="kpis"></div>
@@ -509,10 +514,20 @@ const PERSONAS = {
 };
 
 const TYPE_GROUPS=[["People","ped"],["Traffic","veh"],["Transport","both"],["Environment",null]];
+// GXM guest-journey phases: reframe presets, inputs, and KPIs per trip stage
+const PHASES=[["pre","Pre-trip"],["trip","Trip"],["after","After-trip"]];
+const PHASE_DEF={
+  pre:{bannerTtl:"Forecasted outcome",condTtl:"Forecasted conditions",presets:["Forecast low","Forecast peak","Forecast event"],input:["Booking forecast",["Light","Expected","Heavy"],1],kpi:["Pre-arrival readiness","On track"]},
+  trip:{bannerTtl:"Forecasted outcome",condTtl:"Forecasted conditions",presets:null,input:null,kpi:null},
+  after:{bannerTtl:"Recorded outcome",condTtl:"Recorded conditions",presets:["Last day","Last week","Past event"],input:["Review window",["Yesterday","Last week","Past event"],1],kpi:["Guest satisfaction","Good"]}
+};
+function gxmPhase(){return state.persona==="GXM"?PHASE_DEF[state.tripMode]:PHASE_DEF.trip;}
+function curPresets(){return gxmPhase().presets||SIMS[state.sim].preset;}
+function curInputs(){const pd=gxmPhase(),base=SIMS[state.sim].inputs.slice();return pd.input?base.concat([pd.input]):base;}
 const LAYER_GLYPH={zone:'<span style="display:block;width:12px;height:8px;border:1px dashed var(--ink)"></span>',flow:'<span style="color:var(--ink)">&rarr;</span>',pins:'<svg width="11" height="11"><circle cx="5.5" cy="5.5" r="3.6" fill="none" stroke="var(--ink)"/></svg>'};
 const EXP=[["safe","Safe","var(--safe)"],["exp","Exposed","var(--watch)"],["risk","At-risk","var(--risk)"]];
 
-let state={persona:"GXM",sim:"mobility",running:false,layersOn:{},bandsOff:{},expOff:{},chosenAct:null,inputSel:{},presetSel:1,peopleOn:false,vehOn:false,agents:[],raf:null};
+let state={persona:"GXM",sim:"mobility",tripMode:"trip",running:false,layersOn:{},bandsOff:{},expOff:{},chosenAct:null,inputSel:{},presetSel:1,peopleOn:false,vehOn:false,agents:[],raf:null};
 const $=s=>document.querySelector(s);
 const SVGNS="http://www.w3.org/2000/svg";
 
@@ -569,13 +584,20 @@ function renderAgentSection(){
     host.appendChild(r);
   });
 }
+function renderTripMode(){
+  const wrap=$("#tripModeWrap");
+  if(state.persona!=="GXM"){wrap.classList.add("hidden");return;}
+  wrap.classList.remove("hidden");
+  const host=$("#tripSeg");host.innerHTML="";
+  PHASES.forEach(([k,lab])=>{const b=document.createElement("div");b.className="box"+(state.tripMode===k?" on":"");b.textContent=lab;b.onclick=()=>{state.tripMode=k;state.presetSel=SIMS[state.sim].presetDef;state.inputSel={};renderTripMode();renderPreset();renderInputs();if(state.running)compute();renderReadout();};host.appendChild(b);});
+}
 function renderPreset(){
-  const s=SIMS[state.sim],host=$("#presetSeg");host.innerHTML="";
-  s.preset.forEach((p,i)=>{const b=document.createElement("div");b.className="box"+(i===state.presetSel?" on":"");b.textContent=p;b.onclick=()=>{state.presetSel=i;if(state.running)compute();renderPreset();};host.appendChild(b);});
+  const host=$("#presetSeg");host.innerHTML="";
+  curPresets().forEach((p,i)=>{const b=document.createElement("div");b.className="box"+(i===state.presetSel?" on":"");b.textContent=p;b.onclick=()=>{state.presetSel=i;if(state.running)compute();renderPreset();};host.appendChild(b);});
 }
 function renderInputs(){
-  const s=SIMS[state.sim],host=$("#inputs");host.innerHTML="";
-  s.inputs.forEach((inp,idx)=>{
+  const host=$("#inputs");host.innerHTML="";
+  curInputs().forEach((inp,idx)=>{
     const[label,opts,def,hi]=inp;const sel=(state.inputSel[idx]??def);
     const c=document.createElement("div");c.className="ctrl";c.innerHTML=`<div class="lbl"><span>${label}</span></div>`;
     const seg=document.createElement("div");seg.className="seg";
@@ -751,6 +773,7 @@ function renderReadout(){
   const bn=$("#banner");bn.className="banner lv-"+(mitigated?"stable":s.outcome[1]);
   $("#bannerMsg").textContent=mitigated?"Eased. The chosen response pulls the forecast back toward normal.":s.outcome[0];
   $("#bannerTag").textContent=mitigated?"Recovering":s.outcome[1];
+  const pd=gxmPhase();$("#bannerTtl").textContent=pd.bannerTtl;$("#condSect").textContent=pd.condTtl;
 
   $("#condLbl").innerHTML=`${s.cond.lbl} <em>${s.engine}</em>`;
   $("#condVal").innerHTML=`${s.cond.val} <small>${s.cond.unit}</small>`;
@@ -766,6 +789,7 @@ function renderReadout(){
   }else he.classList.add("hidden");
 
   let kp=s.kpis.slice();if(isOverlay())kp=kp.slice(0,2).concat(s.overlay.kpis);
+  if(pd.kpi)kp=kp.concat([pd.kpi]);
   $("#kpis").innerHTML=kp.map(k=>`<div class="kpi"><div class="kl">${k[0]}</div><div class="kv">${k[1]}</div></div>`).join("");
 
   const acts=isOverlay()?s.overlay.acts.slice():defaultActs();
@@ -853,7 +877,7 @@ function renderLegend(){
     bar.appendChild(eg);
   }
 }
-function renderRoTitle(){const s=SIMS[state.sim];$("#roTitle").innerHTML=`<div class="rt-name">${s.name}</div><div class="rt-lens">${PERSONAS[state.persona].lens[state.sim]||""}</div>`;}
+function renderRoTitle(){const s=SIMS[state.sim];const ph=state.persona==="GXM"?` <span class="rt-phase">${(PHASES.find(p=>p[0]===state.tripMode)||["","" ])[1]}</span>`:"";$("#roTitle").innerHTML=`<div class="rt-name">${s.name}${ph}</div><div class="rt-lens">${PERSONAS[state.persona].lens[state.sim]||""}</div>`;}
 
 /* per-item counters (0 until a run) */
 const BAND_CELLS=[156,92,48,21,9];
@@ -884,7 +908,7 @@ function initSimDefaults(){
   state.vehOn=mv?(mv!=="ped"):false;
   state.chosenAct=state.running?"nothing":null;
 }
-function renderAll(){renderRoTitle();renderSimList();renderAgentSection();renderPreset();renderInputs();renderLayers();renderMap();renderReadout();renderLegend();}
+function renderAll(){renderTripMode();renderRoTitle();renderSimList();renderAgentSection();renderPreset();renderInputs();renderLayers();renderMap();renderReadout();renderLegend();}
 function switchSim(id){stopAnim();state.sim=id;initSimDefaults();applyRunVisual();renderAll();if(state.running)startAnim();}
 function switchPersona(p){
   document.querySelectorAll(".ptab").forEach(x=>x.classList.remove("on"));
