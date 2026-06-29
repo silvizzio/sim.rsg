@@ -78,7 +78,6 @@
   svg.map{width:100%;height:100%;display:block}
   .island{fill:var(--land);stroke:rgba(255,255,255,.14);stroke-width:1.2}
   .fieldblob{fill:rgba(255,255,255,.05);stroke:rgba(255,255,255,.13);stroke-dasharray:4 4}
-  .rt-phase{font-size:9px;color:var(--accent);border:1px solid var(--line2);border-radius:4px;padding:1px 5px;margin-left:7px;vertical-align:middle;letter-spacing:.04em}
   .heatband{stroke:none}
   .pathcase{stroke:rgba(8,16,20,.55);stroke-width:9;stroke-linecap:round}
   .pathline{stroke-width:5.5;stroke-linecap:round;opacity:.95}
@@ -189,10 +188,6 @@
 
     <div class="col rail">
       <div class="railscroll">
-        <div id="tripModeWrap" class="hidden">
-          <div class="sect">Guest journey</div>
-          <div class="seg" id="tripSeg"></div>
-        </div>
         <div class="sect">Simulation</div>
         <div class="simlist" id="simList"></div>
 
@@ -279,18 +274,18 @@ const RAMPS = {
 };
 
 const SIMS = {
-  mobility:{name:"Mobility",engine:"Aimsun Next",ramp:"mob",
+  mobility:{name:"Mobility",engine:"Aimsun Next",ramp:"mob",fieldMode:"paths",
     preset:["Off-peak","Peak arrival","Event egress"],presetDef:1,
-    inputs:[["Demand",["Low","Peak","Event"],1,[2]],["Incident",["None","Lane closed"],0,[1]],["Shuttle freq",["Low","High"],1]],
-    fieldMode:"paths",layers:["field","pins"],
-    elements:[["field","Road congestion"],["flow","Traffic flow"],["pins","Arrival, marina, drop-off"]],
-    spots:[[40,34,"Arrival road","Busy"],[58,46,"Marina loop","Congested"],[31,53,"Drop-off","Free flow"]],
-    outcome:["Congestion risk, the arrival road approaches gridlock at peak","watch"],
-    cond:{lbl:"Worst link delay",val:"6.5",unit:"min",delta:"up 4.2 from base"},
-    kpis:[["Network delay","High"],["Queue length","Long"],["Junction LOS","E"],["Shuttle on-time","Low"]],
-    overlay:{mover:"veh",engine:"Aimsun Next",expLbl:"Vehicles in congestion",expVal:"120",expWorst:"210",expDelta:"of 380 on the network",
-      kpis:[["Buggies queued","High"],["Avg wait","6.5 min"]],
-      acts:[["Meter arrival road","Holds inflow so the loop clears"],["Reroute to second gate","Spreads vehicles across entries"],["Add shuttle runs","Lifts capacity on the busy corridor"],["Hold event egress","Staggers departure to avoid the spike"]]}
+    inputs:[["Guest volume",["Baseline","High","Surge"],1,[2]],["Buses in service",["Base","Added"],0],["EV chargers",["Standard","Expanded"],0]],
+    layers:["field","pins"],
+    elements:[["field","Road congestion"],["pins","Arrival, marina, drop-off"]],
+    spots:[[40,34,"Arrival road","Strained"],[58,46,"Marina loop","Congested"],[31,53,"Drop-off","Good"]],
+    outcome:["Mobility health risk, transfers strain as guests surge and buses run short","watch"],
+    cond:{lbl:"Mobility health",val:"68",unit:"%",delta:"down 22 from base"},
+    kpis:[["Buses in service","12 of 16"],["Buses needed","18"],["EV chargers free","3 of 10"],["Charge load","High"]],
+    overlay:{mover:"veh",engine:"Aimsun Next",expLbl:"Buses running at capacity",expVal:"11",expWorst:"16",expDelta:"of 16 in service",
+      kpis:[["Guests waiting","High"],["EV chargers free","3 of 10"]],
+      acts:[["Add buses to service","Lifts transfer capacity for the surge"],["Open more EV chargers","Adds charging so buses stay in service"],["Reroute transfers","Spreads guests across routes"],["Stagger transfer slots","Smooths the guest surge"]]}
   },
   crowd:{name:"Crowd",engine:"MassMotion",ramp:"crowd_d",
     preset:["Quiet","Busy","Event peak"],presetDef:1,
@@ -501,12 +496,12 @@ const SIMS = {
 
 const PERSONAS = {
   GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety","wave","water"],
-    lens:{mobility:"Guest transfer time and arrival-road congestion, with buggies in the queue",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings",wave:"Sea state at the beach and watersports, with water guests exposed",water:"Water clarity for guest activities, with divers exposed"}},
+    lens:{mobility:"Mobility health as guests rise, with buses in service and EV charging in view",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings",wave:"Sea state at the beach and watersports, with water guests exposed",water:"Water clarity for guest activities, with divers exposed"}},
   ENV:{scope:"Shura Island",sims:["thermal","energy","flood","oil","water","current","wave","coral","emissions"],
     lens:{thermal:"Site shade availability and the heat-stress footprint",energy:"Renewable share against the diesel-backup trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward environmental receptors",water:"Clarity and condition against the activity threshold",current:"Current and flushing condition",wave:"Sea state and coastal exposure",coral:"Bleaching risk on the DHW scale",emissions:"Traffic emissions and noise footprint over the site"},
     floodCond:{lbl:"Surge at shoreline",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
   OPS:{scope:"Shura Island",sims:["mobility","crowd","evacuation","wind","energy","flood","oil","transit","dropoff","safety"],
-    lens:{mobility:"Road congestion and worst-link delay, with vehicles in the queue",crowd:"Crowd density against the safe-density line, with guests in the hotspot",evacuation:"Total clear time against target, with guests still to move",wind:"Exposed-deck and route wind, with guests and vehicles exposed",energy:"Renewable share and EV charging load against the trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward shore and receptors",transit:"Shuttle line load and capacity against demand",dropoff:"Drop-off curb queue and approach spillback",safety:"Conflict points across crossings and shared spaces"},
+    lens:{mobility:"Mobility health, buses in service, and EV charging under guest load",crowd:"Crowd density against the safe-density line, with guests in the hotspot",evacuation:"Total clear time against target, with guests still to move",wind:"Exposed-deck and route wind, with guests and vehicles exposed",energy:"Renewable share and EV charging load against the trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward shore and receptors",transit:"Shuttle line load and capacity against demand",dropoff:"Drop-off curb queue and approach spillback",safety:"Conflict points across crossings and shared spaces"},
     floodCond:{lbl:"Surge at low-lying zone",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
   MO:{scope:"North Reef",sims:["flood","wind","wave","current","water","oil","coral"],overlayOff:["wind"],
     lens:{flood:"Surge at the marina, with people and vehicles on the marina front",wind:"Marine wind window, small-craft limit, mooring exposure",oil:"Slick entry and boom point",water:"Dive-site clarity, DO, and activity",current:"Drift risk on dive routes and vessel handling",wave:"Significant wave height against the small-craft limit",coral:"Bleaching risk, closure trigger, anchor risk"},
@@ -514,20 +509,10 @@ const PERSONAS = {
 };
 
 const TYPE_GROUPS=[["People","ped"],["Traffic","veh"],["Transport","both"],["Environment",null]];
-// GXM guest-journey phases: reframe presets, inputs, and KPIs per trip stage
-const PHASES=[["pre","Pre-trip"],["trip","Trip"],["after","After-trip"]];
-const PHASE_DEF={
-  pre:{bannerTtl:"Forecasted outcome",condTtl:"Forecasted conditions",presets:["Forecast low","Forecast peak","Forecast event"],input:["Booking forecast",["Light","Expected","Heavy"],1],kpi:["Pre-arrival readiness","On track"]},
-  trip:{bannerTtl:"Forecasted outcome",condTtl:"Forecasted conditions",presets:null,input:null,kpi:null},
-  after:{bannerTtl:"Recorded outcome",condTtl:"Recorded conditions",presets:["Last day","Last week","Past event"],input:["Review window",["Yesterday","Last week","Past event"],1],kpi:["Guest satisfaction","Good"]}
-};
-function gxmPhase(){return state.persona==="GXM"?PHASE_DEF[state.tripMode]:PHASE_DEF.trip;}
-function curPresets(){return gxmPhase().presets||SIMS[state.sim].preset;}
-function curInputs(){const pd=gxmPhase(),base=SIMS[state.sim].inputs.slice();return pd.input?base.concat([pd.input]):base;}
 const LAYER_GLYPH={zone:'<span style="display:block;width:12px;height:8px;border:1px dashed var(--ink)"></span>',flow:'<span style="color:var(--ink)">&rarr;</span>',pins:'<svg width="11" height="11"><circle cx="5.5" cy="5.5" r="3.6" fill="none" stroke="var(--ink)"/></svg>'};
 const EXP=[["safe","Safe","var(--safe)"],["exp","Exposed","var(--watch)"],["risk","At-risk","var(--risk)"]];
 
-let state={persona:"GXM",sim:"mobility",tripMode:"trip",running:false,layersOn:{},bandsOff:{},expOff:{},chosenAct:null,inputSel:{},presetSel:1,peopleOn:false,vehOn:false,agents:[],raf:null};
+let state={persona:"GXM",sim:"mobility",running:false,layersOn:{},bandsOff:{},expOff:{},chosenAct:null,inputSel:{},presetSel:1,peopleOn:false,vehOn:false,agents:[],raf:null};
 const $=s=>document.querySelector(s);
 const SVGNS="http://www.w3.org/2000/svg";
 
@@ -584,20 +569,13 @@ function renderAgentSection(){
     host.appendChild(r);
   });
 }
-function renderTripMode(){
-  const wrap=$("#tripModeWrap");
-  if(state.persona!=="GXM"){wrap.classList.add("hidden");return;}
-  wrap.classList.remove("hidden");
-  const host=$("#tripSeg");host.innerHTML="";
-  PHASES.forEach(([k,lab])=>{const b=document.createElement("div");b.className="box"+(state.tripMode===k?" on":"");b.textContent=lab;b.onclick=()=>{state.tripMode=k;state.presetSel=SIMS[state.sim].presetDef;state.inputSel={};renderTripMode();renderPreset();renderInputs();if(state.running)compute();renderReadout();};host.appendChild(b);});
-}
 function renderPreset(){
-  const host=$("#presetSeg");host.innerHTML="";
-  curPresets().forEach((p,i)=>{const b=document.createElement("div");b.className="box"+(i===state.presetSel?" on":"");b.textContent=p;b.onclick=()=>{state.presetSel=i;if(state.running)compute();renderPreset();};host.appendChild(b);});
+  const s=SIMS[state.sim],host=$("#presetSeg");host.innerHTML="";
+  s.preset.forEach((p,i)=>{const b=document.createElement("div");b.className="box"+(i===state.presetSel?" on":"");b.textContent=p;b.onclick=()=>{state.presetSel=i;if(state.running)compute();renderPreset();};host.appendChild(b);});
 }
 function renderInputs(){
-  const host=$("#inputs");host.innerHTML="";
-  curInputs().forEach((inp,idx)=>{
+  const s=SIMS[state.sim],host=$("#inputs");host.innerHTML="";
+  s.inputs.forEach((inp,idx)=>{
     const[label,opts,def,hi]=inp;const sel=(state.inputSel[idx]??def);
     const c=document.createElement("div");c.className="ctrl";c.innerHTML=`<div class="lbl"><span>${label}</span></div>`;
     const seg=document.createElement("div");seg.className="seg";
@@ -773,7 +751,6 @@ function renderReadout(){
   const bn=$("#banner");bn.className="banner lv-"+(mitigated?"stable":s.outcome[1]);
   $("#bannerMsg").textContent=mitigated?"Eased. The chosen response pulls the forecast back toward normal.":s.outcome[0];
   $("#bannerTag").textContent=mitigated?"Recovering":s.outcome[1];
-  const pd=gxmPhase();$("#bannerTtl").textContent=pd.bannerTtl;$("#condSect").textContent=pd.condTtl;
 
   $("#condLbl").innerHTML=`${s.cond.lbl} <em>${s.engine}</em>`;
   $("#condVal").innerHTML=`${s.cond.val} <small>${s.cond.unit}</small>`;
@@ -789,7 +766,6 @@ function renderReadout(){
   }else he.classList.add("hidden");
 
   let kp=s.kpis.slice();if(isOverlay())kp=kp.slice(0,2).concat(s.overlay.kpis);
-  if(pd.kpi)kp=kp.concat([pd.kpi]);
   $("#kpis").innerHTML=kp.map(k=>`<div class="kpi"><div class="kl">${k[0]}</div><div class="kv">${k[1]}</div></div>`).join("");
 
   const acts=isOverlay()?s.overlay.acts.slice():defaultActs();
@@ -877,7 +853,7 @@ function renderLegend(){
     bar.appendChild(eg);
   }
 }
-function renderRoTitle(){const s=SIMS[state.sim];const ph=state.persona==="GXM"?` <span class="rt-phase">${(PHASES.find(p=>p[0]===state.tripMode)||["","" ])[1]}</span>`:"";$("#roTitle").innerHTML=`<div class="rt-name">${s.name}${ph}</div><div class="rt-lens">${PERSONAS[state.persona].lens[state.sim]||""}</div>`;}
+function renderRoTitle(){const s=SIMS[state.sim];$("#roTitle").innerHTML=`<div class="rt-name">${s.name}</div><div class="rt-lens">${PERSONAS[state.persona].lens[state.sim]||""}</div>`;}
 
 /* per-item counters (0 until a run) */
 const BAND_CELLS=[156,92,48,21,9];
@@ -908,7 +884,7 @@ function initSimDefaults(){
   state.vehOn=mv?(mv!=="ped"):false;
   state.chosenAct=state.running?"nothing":null;
 }
-function renderAll(){renderTripMode();renderRoTitle();renderSimList();renderAgentSection();renderPreset();renderInputs();renderLayers();renderMap();renderReadout();renderLegend();}
+function renderAll(){renderRoTitle();renderSimList();renderAgentSection();renderPreset();renderInputs();renderLayers();renderMap();renderReadout();renderLegend();}
 function switchSim(id){stopAnim();state.sim=id;initSimDefaults();applyRunVisual();renderAll();if(state.running)startAnim();}
 function switchPersona(p){
   document.querySelectorAll(".ptab").forEach(x=>x.classList.remove("on"));
