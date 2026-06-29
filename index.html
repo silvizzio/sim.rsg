@@ -435,11 +435,7 @@ const SIMS = {
     spots:[[45,40,"Dive site A","7.0 m vis"],[60,50,"Basin","Poor"],[35,32,"Lagoon","Moderate"]],
     outcome:["Dive clarity risk, visibility falls below the activity threshold","watch"],
     cond:{lbl:"Water clarity",val:"7.0",unit:"m vis",delta:"down 5.0 from base"},
-    kpis:[["Salinity","Shifted"],["Temperature","30"],["DO at dive sites","Low"],["Activity","Limited"]],
-    objLabel:{people:"Divers"},
-    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Divers in low-clarity water",expVal:"50",expWorst:"100",expDelta:"at affected dive sites",
-      kpis:[["At low-clarity sites","Some"],["Activity","Limited"]],
-      acts:[["Close affected sites","Moves divers off low-clarity water"],["Move to clear sites","Shifts dives to better visibility"],["Hold in-water activity","Pauses until clarity recovers"]]}
+    kpis:[["Salinity","Shifted"],["Temperature","30"],["DO at dive sites","Low"],["Activity","Limited"]]
   },
   current:{name:"Ocean current",engine:"Delft3D-FLOW",ramp:"cur",
     preset:["Neap","Spring","Spring Storm"],presetDef:1,
@@ -447,13 +443,13 @@ const SIMS = {
     layers:["field","flow","pins"],
     elements:[["field","Current speed"],["flow","Current direction"],["pins","Channel"]],
     spots:[[50,38,"Channel","0.6 m/s"],[64,30,"Nav pass","Mild"],[38,48,"Marina mouth","Slack"]],
-    outcome:["Drift risk, current at the channel raises dive-drift risk","watch"],
+    outcome:["Drift risk, current at the channel makes vessel handling harder","watch"],
     cond:{lbl:"Current speed",val:"0.6",unit:"m/s",delta:"up 0.3 from base"},
     kpis:[["Water level","Normal"],["At channel","Mild"],["Drift risk","Low"],["Vessel handling","Easy"]],
-    objLabel:{people:"Divers"},
-    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Divers in the drift zone",expVal:"40",expWorst:"90",expDelta:"on exposed dive routes",
-      kpis:[["On exposed routes","Some"],["Drift risk","Rising"]],
-      acts:[["Advise drift on dive routes","Warns dive ops on the exposed routes"],["Move to sheltered sites","Shifts dives off the channel"],["Hold dive departures","Pauses until the current eases"]]}
+    objLabel:{veh:"Vessels"},
+    overlay:{mover:"veh",engine:"AnyLogic (confirm)",expLbl:"Vessels in the drift zone",expVal:"5",expWorst:"10",expDelta:"handling at the channel and marina mouth",
+      kpis:[["Vessel handling","Harder"],["At the channel","Mild"]],
+      acts:[["Advise vessel handling","Flags harder handling at the channel"],["Mark the drift line","Shows where flow concentrates"],["Shift to slack-water windows","Times moves to easier current"]]}
   },
   wave:{name:"Wave",engine:"SWAN",ramp:"wave",
     preset:["Calm","Moderate","Storm"],presetDef:1,
@@ -464,10 +460,10 @@ const SIMS = {
     outcome:["Small-craft wave risk, wave height nears the small-craft limit","watch"],
     cond:{lbl:"Wave height (Hs)",val:"1.6",unit:"m",delta:"up 1.1 from base"},
     kpis:[["Wave period","Short"],["Direction","Cross"],["Breaking on routes","Some"],["Small-craft window","Closed"]],
-    objLabel:{people:"Water guests"},
-    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Water guests in high sea state",expVal:"70",expWorst:"130",expDelta:"at the beach and watersports",
-      kpis:[["Beach status","Caution"],["Watersports","Hold"]],
-      acts:[["Close the beach","Moves guests off exposed water"],["Suspend watersports","Holds activities until it eases"],["Move to sheltered bay","Shifts activity to the lee side"]]}
+    objLabel:{veh:"Vessels"},
+    overlay:{mover:"veh",engine:"AnyLogic (confirm)",expLbl:"Vessels against the small-craft limit",expVal:"6",expWorst:"12",expDelta:"of the active small craft",
+      kpis:[["Small-craft window","Closed"],["Marina exposure","High"]],
+      acts:[["Restrict small craft","Holds craft as wave height nears the limit"],["Set a marina window","Marks a clear departure window"],["Move craft to lee berths","Shelters vessels from the swell"]]}
   },
   coral:{name:"Coral reef",engine:"ReefMod-GBR + NOAA DHW",ramp:"coral",
     preset:["Baseline","Watch","Severe"],presetDef:1,
@@ -495,9 +491,9 @@ const SIMS = {
 };
 
 const PERSONAS = {
-  GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety","wave","water"],
-    lens:{mobility:"Mobility health as guests rise, with buses in service and EV charging in view",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings",wave:"Sea state at the beach and watersports, with water guests exposed",water:"Water clarity for guest activities, with divers exposed"}},
-  ENV:{scope:"Shura Island",sims:["thermal","energy","flood","oil","water","current","wave","coral","emissions"],
+  GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety"],
+    lens:{mobility:"Mobility health as guests rise, with buses in service and EV charging in view",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings"}},
+  ENV:{scope:"Shura Island",sims:["thermal","energy","flood","oil","water","current","wave","coral","emissions"],overlayOff:["wave","current"],
     lens:{thermal:"Site shade availability and the heat-stress footprint",energy:"Renewable share against the diesel-backup trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward environmental receptors",water:"Clarity and condition against the activity threshold",current:"Current and flushing condition",wave:"Sea state and coastal exposure",coral:"Bleaching risk on the DHW scale",emissions:"Traffic emissions and noise footprint over the site"},
     floodCond:{lbl:"Surge at shoreline",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
   OPS:{scope:"Shura Island",sims:["mobility","crowd","evacuation","wind","energy","flood","oil","transit","dropoff","safety"],
