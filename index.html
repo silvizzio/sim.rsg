@@ -361,8 +361,8 @@ const SIMS = {
     outcome:["Comfort risk, noise near the plaza climbs at peak traffic","watch"],
     cond:{lbl:"Peak noise",val:"68",unit:"dBA",delta:"up 9 from base"},
     kpis:[["Noise","Elevated"],["NOx","Low"],["Hotspot","Arrival road"],["EV share","High"]],
-    overlay:{mover:"veh",engine:"PTV Vissim",stressor:true,expLbl:"Vehicles emitting",expVal:"90",expWorst:"150",expDelta:"on the network",
-      kpis:[["Diesel share","Low"],["Boat traffic","Moderate"]],
+    overlay:{mover:"both",engine:"PTV Vissim + MassMotion",expLbl:"Guests exposed to noise",expVal:"130",expWorst:"210",expDelta:"near roads and the plaza",
+      kpis:[["In high-noise area","High"],["Vehicles emitting","Many"]],
       acts:[["Shift to electric runs","Cuts the emitting fleet"],["Reroute heavy vehicles","Moves noise off guest areas"],["Cap boat movements","Holds marina noise down"],["Shift delivery timing","Moves freight off peak"]]}
   },
   safety:{name:"Safety conflicts",engine:"PTV Viswalk",ramp:"conflict",fieldMode:"paths",
@@ -435,7 +435,11 @@ const SIMS = {
     spots:[[45,40,"Dive site A","7.0 m vis"],[60,50,"Basin","Poor"],[35,32,"Lagoon","Moderate"]],
     outcome:["Dive clarity risk, visibility falls below the activity threshold","watch"],
     cond:{lbl:"Water clarity",val:"7.0",unit:"m vis",delta:"down 5.0 from base"},
-    kpis:[["Salinity","Shifted"],["Temperature","30"],["DO at dive sites","Low"],["Activity","Limited"]]
+    kpis:[["Salinity","Shifted"],["Temperature","30"],["DO at dive sites","Low"],["Activity","Limited"]],
+    objLabel:{people:"Divers"},
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Divers in low-clarity water",expVal:"50",expWorst:"100",expDelta:"at affected dive sites",
+      kpis:[["At low-clarity sites","Some"],["Activity","Limited"]],
+      acts:[["Close affected sites","Moves divers off low-clarity water"],["Move to clear sites","Shifts dives to better visibility"],["Hold in-water activity","Pauses until clarity recovers"]]}
   },
   current:{name:"Ocean current",engine:"Delft3D-FLOW",ramp:"cur",
     preset:["Neap","Spring","Spring Storm"],presetDef:1,
@@ -445,7 +449,11 @@ const SIMS = {
     spots:[[50,38,"Channel","0.6 m/s"],[64,30,"Nav pass","Mild"],[38,48,"Marina mouth","Slack"]],
     outcome:["Drift risk, current at the channel raises dive-drift risk","watch"],
     cond:{lbl:"Current speed",val:"0.6",unit:"m/s",delta:"up 0.3 from base"},
-    kpis:[["Water level","Normal"],["At channel","Mild"],["Drift risk","Low"],["Vessel handling","Easy"]]
+    kpis:[["Water level","Normal"],["At channel","Mild"],["Drift risk","Low"],["Vessel handling","Easy"]],
+    objLabel:{people:"Divers"},
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Divers in the drift zone",expVal:"40",expWorst:"90",expDelta:"on exposed dive routes",
+      kpis:[["On exposed routes","Some"],["Drift risk","Rising"]],
+      acts:[["Advise drift on dive routes","Warns dive ops on the exposed routes"],["Move to sheltered sites","Shifts dives off the channel"],["Hold dive departures","Pauses until the current eases"]]}
   },
   wave:{name:"Wave",engine:"SWAN",ramp:"wave",
     preset:["Calm","Moderate","Storm"],presetDef:1,
@@ -455,7 +463,11 @@ const SIMS = {
     spots:[[56,31,"Outer beach","1.6 m"],[40,44,"Breakwater","1.2 m"],[66,40,"Routes","Breaking"]],
     outcome:["Small-craft wave risk, wave height nears the small-craft limit","watch"],
     cond:{lbl:"Wave height (Hs)",val:"1.6",unit:"m",delta:"up 1.1 from base"},
-    kpis:[["Wave period","Short"],["Direction","Cross"],["Breaking on routes","Some"],["Small-craft window","Closed"]]
+    kpis:[["Wave period","Short"],["Direction","Cross"],["Breaking on routes","Some"],["Small-craft window","Closed"]],
+    objLabel:{people:"Water guests"},
+    overlay:{mover:"ped",engine:"MassMotion",expLbl:"Water guests in high sea state",expVal:"70",expWorst:"130",expDelta:"at the beach and watersports",
+      kpis:[["Beach status","Caution"],["Watersports","Hold"]],
+      acts:[["Close the beach","Moves guests off exposed water"],["Suspend watersports","Holds activities until it eases"],["Move to sheltered bay","Shifts activity to the lee side"]]}
   },
   coral:{name:"Coral reef",engine:"ReefMod-GBR + NOAA DHW",ramp:"coral",
     preset:["Baseline","Watch","Severe"],presetDef:1,
@@ -483,8 +495,8 @@ const SIMS = {
 };
 
 const PERSONAS = {
-  GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety"],
-    lens:{mobility:"Guest transfer time and arrival-road congestion, with buggies in the queue",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings"}},
+  GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety","wave","water"],
+    lens:{mobility:"Guest transfer time and arrival-road congestion, with buggies in the queue",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings",wave:"Sea state at the beach and watersports, with water guests exposed",water:"Water clarity for guest activities, with divers exposed"}},
   ENV:{scope:"Shura Island",sims:["thermal","energy","flood","oil","water","current","wave","coral","emissions"],
     lens:{thermal:"Site shade availability and the heat-stress footprint",energy:"Renewable share against the diesel-backup trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward environmental receptors",water:"Clarity and condition against the activity threshold",current:"Current and flushing condition",wave:"Sea state and coastal exposure",coral:"Bleaching risk on the DHW scale",emissions:"Traffic emissions and noise footprint over the site"},
     floodCond:{lbl:"Surge at shoreline",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
@@ -509,6 +521,7 @@ function overlayDef(){const ov=SIMS[state.sim].overlay;if(!ov)return null;const 
 function isOverlay(){return !!overlayDef();}
 function moverType(){const ov=overlayDef();return ov?ov.mover:null;}
 function effMover(id){const ov=SIMS[id].overlay;if(!ov)return null;const off=PERSONAS[state.persona].overlayOff||[];return off.includes(id)?null:ov.mover;}
+function objLabel(k){const o=SIMS[state.sim].objLabel;return (o&&o[k])||(k==="people"?"Humans":"Vehicles");}
 
 /* ---- index bands (field broken into severity bands, each toggleable) ---- */
 function ramp(){return RAMPS[SIMS[state.sim].ramp].stops;}
@@ -546,8 +559,8 @@ function renderAgentSection(){
   if(!isOverlay()){sec.classList.add("hidden");return;}
   sec.classList.remove("hidden");host.innerHTML="";
   const mv=moverType(),present=[];
-  if(mv!=="veh")present.push(["people","Humans","&#9679;",state.peopleOn]);
-  if(mv!=="ped")present.push(["veh","Vehicles","&#9632;",state.vehOn]);
+  if(mv!=="veh")present.push(["people",objLabel("people"),"&#9679;",state.peopleOn]);
+  if(mv!=="ped")present.push(["veh",objLabel("veh"),"&#9632;",state.vehOn]);
   present.forEach(([k,lab,gl,on])=>{
     const locked=agentLocked(k),hint=(mv!=="both")?"always on":(locked?"keep 1":"");
     const r=document.createElement("div");r.className="lyr"+(on?" on":"")+(locked?" locked":"");
@@ -830,8 +843,8 @@ function renderLegend(){
     const present=[];if(mv!=="veh")present.push("people");if(mv!=="ped")present.push("veh");
     const allObjOn=present.every(k=>k==="people"?state.peopleOn:state.vehOn);
     const og=legGroup("Simulation object",{groupOn:allObjOn,onGroup:()=>setAgents(true),locked:allObjOn});
-    if(mv!=="veh")og._m.appendChild(legChip("Humans",'<span style="display:block;width:6px;height:11px;border:1px solid var(--ink);border-radius:2px;margin:0 auto"></span>',{toggle:true,on:state.peopleOn,locked:agentLocked("people"),onToggle:()=>toggleAgent("people"),count:t.ped,cntKey:"ped"}));
-    if(mv!=="ped")og._m.appendChild(legChip("Vehicles",'<span style="display:block;width:14px;height:8px;border:1px solid var(--ink);border-radius:2px"></span>',{toggle:true,on:state.vehOn,locked:agentLocked("veh"),onToggle:()=>toggleAgent("veh"),count:t.veh,cntKey:"veh"}));
+    if(mv!=="veh")og._m.appendChild(legChip(objLabel("people"),'<span style="display:block;width:6px;height:11px;border:1px solid var(--ink);border-radius:2px;margin:0 auto"></span>',{toggle:true,on:state.peopleOn,locked:agentLocked("people"),onToggle:()=>toggleAgent("people"),count:t.ped,cntKey:"ped"}));
+    if(mv!=="ped")og._m.appendChild(legChip(objLabel("veh"),'<span style="display:block;width:14px;height:8px;border:1px solid var(--ink);border-radius:2px"></span>',{toggle:true,on:state.vehOn,locked:agentLocked("veh"),onToggle:()=>toggleAgent("veh"),count:t.veh,cntKey:"veh"}));
     bar.appendChild(og);
 
     // exposure group: safe, exposed, at-risk toggles
