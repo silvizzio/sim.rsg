@@ -257,7 +257,6 @@ const RAMPS = {
   heat:{ttl:"Heat stress (UTCI)",stops:[["Comfortable","#3a8f7a"],["Moderate","#d8c14a"],["Strong","#e0902f"],["Very strong","#d24b34"]]},
   grid:{ttl:"Grid load",stops:[["Low","#3a8f7a"],["Moderate","#d8c14a"],["High","#e0902f"],["Very high","#d24b34"]]},
   flood:{ttl:"Flood depth",stops:[["Dry","#2f6f86"],["Shallow","#5fb3c4"],["Moderate","#d8c14a"],["Deep","#d24b34"]]},
-  oil:{ttl:"Slick concentration",stops:[["None","#2f6f86"],["Sheen","#6b7f8a"],["Light","#caa24a"],["Heavy","#7a4a2f"]]},
   wq:{ttl:"Water quality index",stops:[["Excellent","#2f9fb0"],["Good","#54b38a"],["Moderate","#d8c14a"],["Poor","#e0902f"],["Very poor","#d24b34"]]},
   cur:{ttl:"Current speed",stops:[["Slack","#3a8f7a"],["Mild","#5fb3c4"],["Moderate","#d8c14a"],["Strong","#d24b34"]]},
   wave:{ttl:"Sea state (Hs)",stops:[["Calm","#3a8f7a"],["Slight","#5fb3c4"],["Moderate","#d8c14a"],["Rough","#d24b34"]]},
@@ -417,16 +416,6 @@ const SIMS = {
       kpis:[["Vehicles in depth zone","24"],["Clear time","18 min"]],
       acts:[["Evacuate to high ground","Moves exposed guests out of the depth zone"],["Reroute egress around water","Keeps exits on dry routes as water spreads"],["Move vehicles","Clears buggies and EVs off the low quay"],["Stage shuttles","Pre-positions transport for the move"]]}
   },
-  oil:{name:"Oil spill",engine:"Delft3D-PART (confirm)",ramp:"oil",
-    preset:["Contained","Drifting","Spreading"],presetDef:1,
-    inputs:[["Source",["Vessel","Pipeline"],0],["Wind",["Low","High"],1,[1]],["Current",["Weak","Strong"],1,[1]]],
-    layers:["field","flow","zone","pins"],
-    elements:[["field","Slick and drift plume"],["flow","Drift direction"],["zone","Receptors"],["pins","Locations"]],
-    spots:[[58,28,"Slick front","Heavy"],[42,46,"Boom point","Sheen"],[70,40,"Reef edge","Light"]],
-    outcome:["Offshore slick, drift tracked toward the receptor line","watch"],
-    cond:{lbl:"Slick to receptor",val:"3.2",unit:"km",delta:"closing"},
-    kpis:[["Drift direction","Onshore"],["Spread rate","Moderate"],["Receptors at risk","Reef edge"],["Arrival time","Hours"]]
-  },
   water:{name:"Water quality",engine:"Delft3D-WAQ",ramp:"wq",
     preset:["Good","Stressed","Poor"],presetDef:1,
     inputs:[["Wind",["Low","Medium","High"],1],["Discharge",["Off","On"],1,[1]],["Temperature",["27","31"],1,[1]],["Flushing",["Strong","Weak"],1,[1]]],
@@ -493,14 +482,14 @@ const SIMS = {
 const PERSONAS = {
   GXM:{scope:"Shura Island",sims:["mobility","crowd","evacuation","thermal","wind","transit","access","dropoff","emissions","safety"],
     lens:{mobility:"Mobility health as guests rise, with buses in service and EV charging in view",crowd:"Crowd density at guest hotspots against the comfort line, with guests in the crush",evacuation:"Time to clear guests to muster against the target",thermal:"Outdoor heat stress across guest areas, with guests in discomfort",wind:"Wind on exposed decks and routes, with guests and vehicles exposed",transit:"Shuttle line load and guest wait at stops",access:"Time to reach key amenities, with guests beyond easy reach",dropoff:"Drop-off queue at arrival, with vehicles at the curb",emissions:"Noise across guest areas at peak traffic",safety:"Pedestrian and vehicle conflict at guest crossings"}},
-  ENV:{scope:"Shura Island",sims:["thermal","energy","flood","oil","water","current","wave","coral","emissions"],overlayOff:["wave","current"],
-    lens:{thermal:"Site shade availability and the heat-stress footprint",energy:"Renewable share against the diesel-backup trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward environmental receptors",water:"Clarity and condition against the activity threshold",current:"Current and flushing condition",wave:"Sea state and coastal exposure",coral:"Bleaching risk on the DHW scale",emissions:"Traffic emissions and noise footprint over the site"},
+  ENV:{scope:"Shura Island",sims:["thermal","energy","flood","water","current","wave","coral","emissions"],overlayOff:["wave","current"],
+    lens:{thermal:"Site shade availability and the heat-stress footprint",energy:"Renewable share against the diesel-backup trigger",flood:"Inundation reach, with guests and vehicles exposed on land",water:"Clarity and condition against the activity threshold",current:"Current and flushing condition",wave:"Sea state and coastal exposure",coral:"Bleaching risk on the DHW scale",emissions:"Traffic emissions and noise footprint over the site"},
     floodCond:{lbl:"Surge at shoreline",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
-  OPS:{scope:"Shura Island",sims:["mobility","crowd","evacuation","wind","energy","flood","oil","transit","dropoff","safety"],
-    lens:{mobility:"Mobility health, buses in service, and EV charging under guest load",crowd:"Crowd density against the safe-density line, with guests in the hotspot",evacuation:"Total clear time against target, with guests still to move",wind:"Exposed-deck and route wind, with guests and vehicles exposed",energy:"Renewable share and EV charging load against the trigger",flood:"Inundation reach, with guests and vehicles exposed on land",oil:"Slick drift toward shore and receptors",transit:"Shuttle line load and capacity against demand",dropoff:"Drop-off curb queue and approach spillback",safety:"Conflict points across crossings and shared spaces"},
+  OPS:{scope:"Shura Island",sims:["mobility","crowd","evacuation","wind","energy","flood","transit","dropoff","safety"],
+    lens:{mobility:"Mobility health, buses in service, and EV charging under guest load",crowd:"Crowd density against the safe-density line, with guests in the hotspot",evacuation:"Total clear time against target, with guests still to move",wind:"Exposed-deck and route wind, with guests and vehicles exposed",energy:"Renewable share and EV charging load against the trigger",flood:"Inundation reach, with guests and vehicles exposed on land",transit:"Shuttle line load and capacity against demand",dropoff:"Drop-off curb queue and approach spillback",safety:"Conflict points across crossings and shared spaces"},
     floodCond:{lbl:"Surge at low-lying zone",val:"1.8",unit:"m",delta:"up 1.5 from base"}},
-  MO:{scope:"North Reef",sims:["flood","wind","wave","current","water","oil","coral"],overlayOff:["wind"],
-    lens:{flood:"Surge at the marina, with people and vehicles on the marina front",wind:"Marine wind window, small-craft limit, mooring exposure",oil:"Slick entry and boom point",water:"Dive-site clarity, DO, and activity",current:"Drift risk on dive routes and vessel handling",wave:"Significant wave height against the small-craft limit",coral:"Bleaching risk, closure trigger, anchor risk"},
+  MO:{scope:"North Reef",sims:["flood","wind","wave","current","water","coral"],overlayOff:["wind"],
+    lens:{flood:"Surge at the marina, with people and vehicles on the marina front",wind:"Marine wind window, small-craft limit, mooring exposure",water:"Dive-site clarity, DO, and activity",current:"Drift risk on dive routes and vessel handling",wave:"Significant wave height against the small-craft limit",coral:"Bleaching risk, closure trigger, anchor risk"},
     floodCond:{lbl:"Surge at marina",val:"1.8",unit:"m",delta:"up 1.5 from base"}}
 };
 
@@ -772,7 +761,7 @@ function renderReadout(){
     row.onclick=()=>{state.chosenAct=(state.chosenAct===i?"nothing":i);renderReadout();};
     host.appendChild(row);
   });
-  const holds=["thermal","wind","wave","current","coral","oil","water"].includes(state.sim);
+  const holds=["thermal","wind","wave","current","coral","water"].includes(state.sim);
   const worst=isOverlay()?`, exposure could reach ${s.overlay.expWorst}`:"";
   const dn=document.createElement("div");dn.className="act donothing"+(state.chosenAct==="nothing"?" on":"");
   dn.innerHTML=`<span class="rb"></span><div><div class="at">Do nothing <span class="lowtag">${holds?"holds":"worsens"}</span></div><div class="ah">${holds?"Holds at the modeled level, the event does not compound on its own":"Drifts to the projected worst as the event compounds"+worst}</div></div>`;
@@ -781,7 +770,6 @@ function renderReadout(){
 }
 function defaultActs(){
   const A={
-    oil:[["Deploy boom at entry","Holds the slick at the boom point"],["Flag drift to vessels","Marks the drift line for craft"],["Sample receptors","Confirms the modeled plume on the water"],["Restrict affected zone","Closes the receptor area until clear"]],
     water:[["Flag dive site clarity","Clarity falls below the activity threshold"],["Advise activity suitability","Sets a suitability call for the sites"],["Sample dive sites","Confirms clarity and DO on the water"],["Restrict affected sites","Holds the worst-hit sites until clarity recovers"]],
     current:[["Advise drift on dive routes","Current at the channel raises drift risk"],["Flag channel for vessels","Marks where flow concentrates"],["Restrict drift-risk sites","Holds the most exposed sites"],["Update vessel handling notes","Keeps handling guidance current"]],
     wave:[["Restrict small craft","Wave height nears the small-craft limit"],["Advise marina window","Sets a clear departure window"],["Close exposed beach","Wave energy reaches the exposed beach"],["Re-route around breaking zones","Keeps routes off the breaking lines"]],
@@ -894,5 +882,33 @@ $("#runBtn").onclick=()=>setRunning(!state.running);
 
 state.running=false;$("#scopeChip").textContent=PERSONAS[state.persona].scope;initSimDefaults();applyRunVisual();renderAll();
 </script>
+
+<!-- ============================================================
+     ARCHIVED SIM: Oil spill  (extracted, not executed)
+     Removed from active config on archive. To restore, paste each
+     fragment back into its original object and re-add "oil" to the
+     ENV / OPS / MO sims arrays, their lens maps, and the holds list.
+     ------------------------------------------------------------
+     1) RAMPS entry:
+  oil:{ttl:"Slick concentration",stops:[["None","#2f6f86"],["Sheen","#6b7f8a"],["Light","#caa24a"],["Heavy","#7a4a2f"]]},
+     2) SIM config entry:
+  oil:{name:"Oil spill",engine:"Delft3D-PART (confirm)",ramp:"oil",
+    preset:["Contained","Drifting","Spreading"],presetDef:1,
+    inputs:[["Source",["Vessel","Pipeline"],0],["Wind",["Low","High"],1,[1]],["Current",["Weak","Strong"],1,[1]]],
+    layers:["field","flow","zone","pins"],
+    elements:[["field","Slick and drift plume"],["flow","Drift direction"],["zone","Receptors"],["pins","Locations"]],
+    spots:[[58,28,"Slick front","Heavy"],[42,46,"Boom point","Sheen"],[70,40,"Reef edge","Light"]],
+    outcome:["Offshore slick, drift tracked toward the receptor line","watch"],
+    cond:{lbl:"Slick to receptor",val:"3.2",unit:"km",delta:"closing"},
+    kpis:[["Drift direction","Onshore"],["Spread rate","Moderate"],["Receptors at risk","Reef edge"],["Arrival time","Hours"]]
+  },
+     3) defaultActs entry:
+    oil:[["Deploy boom at entry","Holds the slick at the boom point"],["Flag drift to vessels","Marks the drift line for craft"],["Sample receptors","Confirms the modeled plume on the water"],["Restrict affected zone","Closes the receptor area until clear"]],
+     4) Persona wiring removed (re-add manually):
+        ENV.sims: ...,"flood","oil","water",...   ENV.lens.oil:"Slick drift toward environmental receptors"
+        OPS.sims: ...,"flood","oil","transit",... OPS.lens.oil:"Slick drift toward shore and receptors"
+        MO.sims:  ...,"water","oil","coral"        MO.lens.oil:"Slick entry and boom point"
+        holds:    ...,"coral","oil","water"
+============================================================ -->
 </body>
 </html>
